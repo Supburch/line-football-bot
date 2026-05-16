@@ -1,4 +1,5 @@
-from linebot.v3.webhooks import WebhookHandler, MessageEvent, TextMessageContent
+from linebot.v3.webhook import WebhookHandler
+from linebot.v3.webhooks import MessageEvent, TextMessageContent
 from linebot.v3.messaging import ApiClient, MessagingApi, ReplyMessageRequest, TextMessage, FlexMessage, FlexContainer
 from app.config import Config
 from app.utils.logger import logger
