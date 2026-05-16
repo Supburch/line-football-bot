@@ -25,11 +25,12 @@ def run_smart_schedule(scheduler):
     now = datetime.now(Config.TZ)
     in_window = False
 
+    live_matches = []
     for m in matches:
         status = m.get("status", "")
         if status in ["IN_PLAY", "PAUSED"]:
             in_window = True
-            break
+            live_matches.append(m)
         utc_str = m.get("utcDate", "")
         try:
             dt_utc = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
@@ -37,7 +38,6 @@ def run_smart_schedule(scheduler):
             diff = abs((now - dt_bkk).total_seconds())
             if diff <= 7200:
                 in_window = True
-                break
         except Exception:
             pass
 
@@ -45,7 +45,7 @@ def run_smart_schedule(scheduler):
         if SchedulerState.CURRENT_POLL_MODE != "fast":
             SchedulerState.CURRENT_POLL_MODE = "fast"
             scheduler.reschedule_job("goal_monitor", trigger="interval", minutes=_jitter(3, 2))
-        monitor_goals()
+        monitor_goals(live_matches=live_matches if live_matches else None)
     else:
         if SchedulerState.CURRENT_POLL_MODE != "slow":
             SchedulerState.CURRENT_POLL_MODE = "slow"

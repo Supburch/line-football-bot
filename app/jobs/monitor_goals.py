@@ -12,15 +12,18 @@ last_sent_scores: Dict[str, Tuple[int, int]] = {}
 last_sent_lock = Lock()
 monitor_lock = Lock()
 
-def monitor_goals():
+def monitor_goals(live_matches: list = None):
     if not monitor_lock.acquire(blocking=False):
         return
     try:
-        data = svc.fetch(f"competitions/{EPL_CODE}/matches?status=LIVE", ttl=0)
-        if not isinstance(data, dict):
-            return
-
-        matches = data.get("matches", [])
+        if live_matches is not None:
+            matches = live_matches
+        else:
+            data = svc.fetch(f"competitions/{EPL_CODE}/matches?status=LIVE", ttl=0)
+            if not isinstance(data, dict):
+                return
+            matches = data.get("matches", [])
+            
         if not matches:
             return
 
