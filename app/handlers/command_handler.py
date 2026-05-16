@@ -31,13 +31,15 @@ def build_live_scores() -> str:
     return "\n".join(lines)
 
 def build_recent_results() -> str:
-    data = svc.fetch(f"competitions/{EPL_CODE}/matches?status=FINISHED&limit=10", ttl=120)
+    data = svc.fetch(f"competitions/{EPL_CODE}/matches?status=FINISHED", ttl=120)
     if not isinstance(data, dict): return "📭 ไม่มีผลการแข่งขันล่าสุด"
     matches = data.get("matches", [])
     if not matches: return "📭 ไม่มีผลการแข่งขันล่าสุด"
 
     lines = ["⚽ ผลบอล EPL ล่าสุด", "─" * 20]
-    for m in matches[:10]:
+    # เอา 10 นัดล่าสุด (อยู่ท้ายสุดของ array) และเรียงให้ล่าสุดอยู่บนสุด
+    recent_matches = reversed(matches[-10:])
+    for m in recent_matches:
         home = m["homeTeam"]["name"]
         away = m["awayTeam"]["name"]
         hs   = m.get("score", {}).get("fullTime", {}).get("home", "?")
