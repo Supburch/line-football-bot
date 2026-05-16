@@ -1,0 +1,52 @@
+import random
+from datetime import datetime, timezone
+from app.config import Config
+from app.services.football_service import svc
+from app.jobs.monitor_goals import monitor_goals
+from app.utils.constants import EPL_CODE
+
+class SchedulerState:
+    CURRENT_POLL_MODE = "slow"
+
+def _jitter(base_minutes: int, spread: int = 5) -> int:
+    return base_minutes + random.randint(0, spread)
+
+def run_smart_schedule(scheduler):
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    data = svc.fetch(
+        f"competitions/{EPL_CODE}/matches?dateFrom={today}&dateTo={today}",
+        ttl=1800,
+    )
+
+    if not isinstance(data, dict):
+        return
+
+    matches = data.get("matches", [])
+    now = datetime.now(Config.TZ)
+    in_window = False
+
+    for m in matches:
+        status = m.get("status", "")
+        if status in ["IN_PLAY", "PAUSED"]:
+            in_window = True
+            break
+        utc_str = m.get("utcDate", "")
+        try:
+            dt_utc = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
+            dt_bkk = dt_utc.astimezone(Config.TZ)
+            diff = abs((now - dt_bkk).total_seconds())
+            if diff <= 7200:
+                in_window = True
+                break
+        except Exception:
+            pass
+
+    if in_window:
+        if SchedulerState.CURRENT_POLL_MODE != "fast":
+            SchedulerState.CURRENT_POLL_MODE = "fast"
+            scheduler.reschedule_job("goal_monitor", trigger="interval", minutes=_jitter(3, 2))
+        monitor_goals()
+    else:
+        if SchedulerState.CURRENT_POLL_MODE != "slow":
+            SchedulerState.CURRENT_POLL_MODE = "slow"
+            scheduler.reschedule_job("goal_monitor", trigger="interval", minutes=_jitter(20, 10))

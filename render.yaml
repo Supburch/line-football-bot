@@ -1,0 +1,5 @@
+services:
+  - type: web
+    name: football-bot
+    runtime: docker
+    plan: free
