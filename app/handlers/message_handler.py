@@ -1,5 +1,5 @@
 from linebot.v3.webhook import WebhookHandler
-from linebot.v3.webhooks import MessageEvent, TextMessageContent
+from linebot.v3.webhooks import MessageEvent, TextMessageContent, JoinEvent
 from linebot.v3.messaging import ApiClient, MessagingApi, ReplyMessageRequest, TextMessage, FlexMessage, FlexContainer
 from app.config import Config
 from app.utils.logger import logger
@@ -47,3 +47,9 @@ def handle_msg(event):
                 ))
         except Exception:
             pass
+
+@handler.add(JoinEvent)
+def handle_join(event):
+    if event.source.type in ["group", "room"]:
+        if gid := safe_group_id(event.source):
+            db_register_group(gid)

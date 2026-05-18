@@ -6,5 +6,6 @@ DEFAULT_LOGO = "https://via.placeholder.com/100/CCCCCC/FFFFFF?text=?"
 
 WATCHED_TEAMS = [
     "Newcastle United", "Liverpool", "Tottenham Hotspur",
-    "Arsenal", "West Ham United",
+    "Arsenal", "West Ham United", "Nottingham Forest",
+    "Aston Villa", "Manchester City", "Manchester United", "Chelsea"
 ]

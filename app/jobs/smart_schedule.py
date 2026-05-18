@@ -12,9 +12,12 @@ def _jitter(base_minutes: int, spread: int = 5) -> int:
     return base_minutes + random.randint(0, spread)
 
 def run_smart_schedule(scheduler):
-    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    from datetime import timedelta
+    now_utc = datetime.now(timezone.utc)
+    date_from = (now_utc - timedelta(days=1)).strftime("%Y-%m-%d")
+    date_to = (now_utc + timedelta(days=1)).strftime("%Y-%m-%d")
     data = svc.fetch(
-        f"competitions/{EPL_CODE}/matches?dateFrom={today}&dateTo={today}",
+        f"competitions/{EPL_CODE}/matches?dateFrom={date_from}&dateTo={date_to}",
         ttl=1800,
     )
 
