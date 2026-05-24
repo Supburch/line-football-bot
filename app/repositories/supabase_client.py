@@ -49,6 +49,10 @@ def get_sent_event(key: str) -> bool:
     res = execute_with_retry(supabase.table("sent_events").select("event_key").eq("event_key", key))
     return bool(res and res.data)
 
+def mark_sent_event(key: str):
+    if not supabase: return
+    execute_with_retry(supabase.table("sent_events").upsert({"event_key": key}))
+
 def commit_match_state(match_id: str, event_key: str, home_score: int, away_score: int) -> CommitResult:
     """Simulates an application-level transaction to commit the match state."""
     if not supabase: 
