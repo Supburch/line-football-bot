@@ -5,6 +5,6 @@ WAKE_WORDS = ["บอตเว้ย"]
 DEFAULT_LOGO = "https://via.placeholder.com/100/CCCCCC/FFFFFF?text=?"
 
 WATCHED_TEAMS = [
-    "Newcastle United", "Liverpool", "Tottenham Hotspur",
-    "Arsenal", "West Ham United"
+    "Tottenham Hotspur",
+    "West Ham United",
 ]
