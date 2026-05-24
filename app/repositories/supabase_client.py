@@ -1,19 +1,26 @@
 import time
 from datetime import datetime, timedelta
 from typing import List
+from dataclasses import dataclass
 from supabase import create_client
 from app.config import Config
 from app.utils.logger import logger
+
+@dataclass
+class CommitResult:
+    success: bool
+    event_saved: bool
+    score_saved: bool
 
 supabase = None
 if Config.SUPABASE_URL and Config.SUPABASE_KEY:
     try:
         supabase = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
-        logger.info("✅ Supabase connected")
+        logger.info({"event": "supabase_connected"})
     except Exception as e:
-        logger.error(f"❌ Supabase failed: {e}")
+        logger.error({"event": "supabase_failed", "error": str(e)})
 else:
-    logger.warning("⚠️  Supabase not configured")
+    logger.warning({"event": "supabase_not_configured"})
 
 def execute_with_retry(query, max_retries=2):
     if not supabase: return None
@@ -22,7 +29,7 @@ def execute_with_retry(query, max_retries=2):
             return query.execute()
         except Exception as e:
             if attempt == max_retries - 1:
-                logger.error(f"Supabase query failed after {max_retries} attempts: {e}")
+                logger.error({"event": "supabase_query_failed", "error": str(e), "attempts": max_retries})
                 return None
             time.sleep(1)
 
@@ -37,26 +44,40 @@ def db_get_groups() -> List[str]:
         return [r["group_id"] for r in res.data]
     return []
 
-def update_match_score(match_id: str, home_score: int, away_score: int):
-    if not supabase or not match_id: return
+def get_sent_event(key: str) -> bool:
+    if not supabase: return False
+    res = execute_with_retry(supabase.table("sent_events").select("event_key").eq("event_key", key))
+    return bool(res and res.data)
+
+def commit_match_state(match_id: str, event_key: str, home_score: int, away_score: int) -> CommitResult:
+    """Simulates an application-level transaction to commit the match state."""
+    if not supabase: 
+        return CommitResult(success=True, event_saved=False, score_saved=False)
+
+    # 1. Mark event as sent
+    event_res = execute_with_retry(supabase.table("sent_events").upsert({"event_key": event_key}))
+    event_saved = getattr(event_res, "data", None) is not None
+    
+    if not event_saved:
+        logger.error({"event": "split_brain_warning", "message": "Failed to save event_key", "event_key": event_key})
+        return CommitResult(success=False, event_saved=False, score_saved=False)
+
+    # 2. Update match score
     payload = {
         "match_id": match_id,
         "home_score": home_score,
         "away_score": away_score,
         "updated_at": datetime.now(Config.TZ).isoformat(),
     }
-    res = execute_with_retry(supabase.table("match_scores").update(payload).eq("match_id", match_id))
-    if not getattr(res, "data", None):
-        execute_with_retry(supabase.table("match_scores").insert(payload))
+    score_res = execute_with_retry(supabase.table("match_scores").update(payload).eq("match_id", match_id))
+    if not getattr(score_res, "data", None):
+        score_res = execute_with_retry(supabase.table("match_scores").insert(payload))
+    
+    score_saved = getattr(score_res, "data", None) is not None
+    if not score_saved:
+        logger.error({"event": "split_brain_warning", "message": "Failed to save match score after saving event", "match_id": match_id})
 
-def get_sent_event(key: str) -> bool:
-    if not supabase: return False
-    res = execute_with_retry(supabase.table("sent_events").select("event_key").eq("event_key", key))
-    return bool(res and res.data)
-
-def mark_sent_event(key: str):
-    if not supabase: return
-    execute_with_retry(supabase.table("sent_events").upsert({"event_key": key}))
+    return CommitResult(success=score_saved, event_saved=event_saved, score_saved=score_saved)
 
 def cleanup_sent_events_db():
     if not supabase: return

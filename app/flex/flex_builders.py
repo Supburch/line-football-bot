@@ -34,6 +34,32 @@ def build_goal_flex(h_name: str, a_name: str, hs: int, as_: int,
         }
     }
 
+def build_var_flex(h_name: str, a_name: str, hs: int, as_: int, h_logo: str, a_logo: str, scorer: str = "") -> FlexDict:
+    sub_text = f"Goal by {scorer} disallowed after review" if scorer else "Goal disallowed after review"
+    return {
+        "type": "bubble",
+        "body": {
+            "type": "box", "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "❌ VAR: NO GOAL!", "weight": "bold",
+                 "color": "#ef4444", "size": "xl", "align": "center"},
+                {"type": "text", "text": sub_text, "size": "xs", "align": "center", "color": "#888888", "margin": "sm"},
+                {
+                    "type": "box", "layout": "horizontal", "margin": "lg", "alignItems": "center",
+                    "contents": [
+                        {"type": "image", "url": safe_url(h_logo), "size": "sm", "flex": 2},
+                        {"type": "text", "text": str(hs), "size": "xxl", "weight": "bold", "align": "center", "flex": 1},
+                        {"type": "text", "text": "-", "size": "xxl", "weight": "bold", "align": "center", "flex": 0},
+                        {"type": "text", "text": str(as_), "size": "xxl", "weight": "bold", "align": "center", "flex": 1},
+                        {"type": "image", "url": safe_url(a_logo), "size": "sm", "flex": 2},
+                    ]
+                },
+                {"type": "text", "text": f"{h_name}  vs  {a_name}",
+                 "margin": "md", "align": "center", "color": "#666666", "size": "sm"}
+            ]
+        }
+    }
+
 def build_standings_flex(standings_groups) -> FlexDict:
     total = next((s for s in standings_groups if s.get("type") == "TOTAL"), standings_groups[0])
     table = total.get("table", [])
