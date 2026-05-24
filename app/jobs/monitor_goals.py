@@ -75,10 +75,18 @@ def monitor_goals(live_matches: list = None):
             except (ValueError, TypeError):
                 hs = as_ = 0
 
-            # Only initialize state if we've never seen it, without triggering goal logic
+            # Only initialize state if we've never seen it in memory
             if state_manager.get_score(fid) is None:
-                state_manager.commit_memory(fid, hs, as_)
-                continue
+                event_key = f"{fid}-{hs}-{as_}"
+                if get_sent_event(event_key):
+                    # We already sent this score before we crashed/slept. Load it.
+                    state_manager.commit_memory(fid, hs, as_)
+                    continue
+                else:
+                    # We haven't sent this score! It must have happened while we were offline.
+                    # Initialize memory to (0,0) so the transition detector will trigger a GOAL broadcast.
+                    state_manager.commit_memory(fid, 0, 0)
+                    # Don't continue, let it fall through to detect the goal!
 
             # Detect Transition
             is_goal, is_var, goal_diff, prev_score = detect_score_transition(fid, hs, as_)
