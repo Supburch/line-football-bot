@@ -142,10 +142,13 @@ def monitor_goals(live_matches: list = None):
                     state_manager.commit_memory(fid, hs, as_)
                     continue
                 else:
-                    # We haven't sent this score! It must have happened while we were offline.
-                    # Initialize memory to (0,0) so the transition detector will trigger a GOAL broadcast.
-                    state_manager.commit_memory(fid, 0, 0)
-                    # Don't continue, let it fall through to detect the goal!
+                    # SAFE INIT: Always initialize to CURRENT score.
+                    # This means we only detect FUTURE goals, never re-fire on restart.
+                    # We may miss a goal that happened exactly during a restart window,
+                    # but this is infinitely better than sending 5+ duplicate broadcasts.
+                    state_manager.commit_memory(fid, hs, as_)
+                    logger.info("safe_init_current_score", extra={"match_id": fid, "score": f"{hs}-{as_}"})
+                    continue
 
             # Detect Transition
             is_goal, is_var, goal_diff, prev_score = detect_score_transition(fid, hs, as_)
