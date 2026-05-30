@@ -1,7 +1,7 @@
 from datetime import datetime
 from app.config import Config
 from app.utils.helpers import safe_url
-from app.utils.constants import WATCHED_TEAMS, EPL_LOGO, WC_LOGO, WC_CODE, ACTIVE_COMPETITION, COUNTDOWN_COVER
+from app.utils.constants import WATCHED_TEAMS, EPL_LOGO, WC_LOGO, WC_CODE, ACTIVE_COMPETITION, COUNTDOWN_COVER, WORLD_CUP_START
 from app.utils.aliases import FlexDict
 
 def build_goal_flex(h_name: str, a_name: str, hs: int, as_: int,
