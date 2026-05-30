@@ -244,39 +244,24 @@ def build_countdown_flex(days_left: int) -> FlexDict:
                     "aspectMode": "cover",
                     "aspectRatio": "1:1"
                 },
-                # Dynamic Stretched Box for Centering the Badge at the Bottom
+                # Dynamic Overlay: Gold Number exactly over the '...' placeholder
                 {
                     "type": "box",
                     "layout": "vertical",
                     "position": "absolute",
-                    "offsetBottom": "38px",
-                    "offsetStart": "0px",
-                    "offsetEnd": "0px",
+                    "offsetBottom": "29px",
+                    "offsetStart": "49%",
+                    "offsetEnd": "43%",
                     "alignItems": "center",
                     "justifyContent": "center",
                     "contents": [
-                        # Premium Gold Badge overlapping the artwork ribbon
                         {
-                            "type": "box",
-                            "layout": "vertical",
-                            "backgroundColor": "#D4AF37",
-                            "cornerRadius": "lg",
-                            "paddingStart": "md",
-                            "paddingEnd": "md",
-                            "paddingTop": "xs",
-                            "paddingBottom": "xs",
-                            "alignItems": "center",
-                            "justifyContent": "center",
-                            "contents": [
-                                {
-                                    "type": "text",
-                                    "text": f"🏆 เหลืออีก {days_left} วัน",
-                                    "size": "sm",
-                                    "color": "#7F0F25",
-                                    "weight": "bold",
-                                    "align": "center"
-                                }
-                            ]
+                            "type": "text",
+                            "text": f"{days_left}",
+                            "size": "lg",
+                            "color": "#F3C562",
+                            "weight": "bold",
+                            "align": "center"
                         }
                     ]
                 }
