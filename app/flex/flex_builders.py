@@ -244,29 +244,39 @@ def build_countdown_flex(days_left: int) -> FlexDict:
                     "aspectMode": "cover",
                     "aspectRatio": "1:1"
                 },
-                # Dynamic Overlay Floating Gold Badge showing the exact remaining days
+                # Dynamic Stretched Box for Centering the Badge at the Bottom
                 {
                     "type": "box",
                     "layout": "vertical",
                     "position": "absolute",
-                    "backgroundColor": "#D4AF37",
-                    "cornerRadius": "lg",
-                    "paddingStart": "md",
-                    "paddingEnd": "md",
-                    "paddingTop": "sm",
-                    "paddingBottom": "sm",
-                    "offsetTop": "15px",
-                    "offsetStart": "15px",
+                    "offsetBottom": "38px",
+                    "offsetStart": "0px",
+                    "offsetEnd": "0px",
                     "alignItems": "center",
                     "justifyContent": "center",
                     "contents": [
+                        # Premium Gold Badge overlapping the artwork ribbon
                         {
-                            "type": "text",
-                            "text": f"🏆 เหลืออีก {days_left} วัน",
-                            "size": "sm",
-                            "color": "#7F0F25",
-                            "weight": "bold",
-                            "align": "center"
+                            "type": "box",
+                            "layout": "vertical",
+                            "backgroundColor": "#D4AF37",
+                            "cornerRadius": "lg",
+                            "paddingStart": "md",
+                            "paddingEnd": "md",
+                            "paddingTop": "xs",
+                            "paddingBottom": "xs",
+                            "alignItems": "center",
+                            "justifyContent": "center",
+                            "contents": [
+                                {
+                                    "type": "text",
+                                    "text": f"🏆 เหลืออีก {days_left} วัน",
+                                    "size": "sm",
+                                    "color": "#7F0F25",
+                                    "weight": "bold",
+                                    "align": "center"
+                                }
+                            ]
                         }
                     ]
                 }
