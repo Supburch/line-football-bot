@@ -2,7 +2,7 @@ from typing import Any
 from datetime import datetime
 from app.config import Config
 from app.services.football_service import svc
-from app.flex.flex_builders import build_standings_flex, build_upcoming_flex
+from app.flex.flex_builders import build_standings_flex, build_upcoming_flex, build_scorers_flex
 from app.utils.constants import ACTIVE_COMPETITION, WC_CODE
 
 HELP_TEXT = (
@@ -12,7 +12,8 @@ HELP_TEXT = (
     "⚽ บอตเว้ย ผลบอล\n"
     "🔴 บอตเว้ย สด\n"
     "🏆 บอตเว้ย ตาราง\n"
-    "📅 บอตเว้ย โปรแกรม\n\n"
+    "📅 บอตเว้ย โปรแกรม\n"
+    "🥾 บอตเว้ย ดาวซัลโว\n\n"
     "🔔 แจ้งเตือนประตูอัตโนมัติทีมโปรด"
 )
 
@@ -65,11 +66,19 @@ def build_upcoming() -> Any:
     if not matches: return "📭 ตอนนี้ไม่มีโปรแกรมการแข่งขัน"
     return build_upcoming_flex(matches)
 
+def build_scorers() -> Any:
+    data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/scorers", ttl=14400)
+    if not isinstance(data, dict): return "📭 ยังไม่มีข้อมูลดาวซัลโว"
+    scorers = data.get("scorers", [])
+    if not scorers: return "📭 ยังไม่มีข้อมูลดาวซัลโว"
+    return build_scorers_flex(scorers)
+
 COMMAND_MAP = [
     (("สด", "live"), build_live_scores),
     (("ตาราง", "table", "standing"), build_standings),
     (("ผล", "ผลบอล", "result"), build_recent_results),
     (("โปรแกรม", "fixture", "นัดถัดไป"), build_upcoming),
+    (("ดาวซัลโว", "scorer", "scorers", "รองเท้าทองคำ"), build_scorers),
 ]
 
 def handle_command(cmd_text: str) -> Any:

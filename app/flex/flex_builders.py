@@ -1,7 +1,7 @@
 from datetime import datetime
 from app.config import Config
 from app.utils.helpers import safe_url
-from app.utils.constants import WATCHED_TEAMS, EPL_LOGO, WC_LOGO, WC_CODE, ACTIVE_COMPETITION, COUNTDOWN_COVER, WORLD_CUP_START
+from app.utils.constants import WATCHED_TEAMS, WATCHED_COUNTRIES, EPL_LOGO, WC_LOGO, WC_CODE, ACTIVE_COMPETITION, COUNTDOWN_COVER, WORLD_CUP_START
 from app.utils.aliases import FlexDict
 
 def build_goal_flex(h_name: str, a_name: str, hs: int, as_: int,
@@ -109,7 +109,110 @@ def build_var_flex(h_name: str, a_name: str, hs: int, as_: int, h_logo: str, a_l
         }
     }
 
+def make_group_box(group_data) -> dict:
+    group_name = group_data.get("group", "Unknown Group").replace("GROUP_", "GROUP ")
+    table = group_data.get("table", [])
+    
+    rows = [
+        # Group Header
+        {
+            "type": "box", "layout": "vertical", "margin": "md", "contents": [
+                {"type": "text", "text": group_name, "weight": "bold", "color": "#D4AF37", "size": "md", "margin": "sm"},
+                {"type": "separator", "margin": "sm", "color": "#D4AF37"}
+            ]
+        },
+        # Headers
+        {
+            "type": "box", "layout": "horizontal", "margin": "sm",
+            "contents": [
+                {"type": "text", "text": "#",    "weight": "bold", "size": "xs", "flex": 1, "align": "center"},
+                {"type": "text", "text": "Team", "weight": "bold", "size": "xs", "flex": 4},
+                {"type": "text", "text": "P",    "weight": "bold", "size": "xs", "align": "center", "flex": 1},
+                {"type": "text", "text": "GD",   "weight": "bold", "size": "xs", "align": "center", "flex": 1},
+                {"type": "text", "text": "Pts",  "weight": "bold", "size": "xs", "align": "end", "flex": 2, "margin": "sm"},
+            ]
+        },
+        {"type": "separator", "margin": "xs"},
+    ]
+    
+    for t in table:
+        pos    = t.get("position", "-")
+        name   = t.get("team", {}).get("name", "Unknown")
+        played = t.get("playedGames", 0)
+        gd     = t.get("goalDifference", 0)
+        pts    = t.get("points", 0)
+        logo   = t.get("team", {}).get("crest", "")
+        
+        gd_text  = f"+{gd}" if gd > 0 else str(gd)
+        is_fav   = any(f.lower() in name.lower() for f in WATCHED_COUNTRIES)
+        bg_color = "#F0F9FF" if is_fav else "#FFFFFF"
+        
+        rows.append({
+            "type": "box", "layout": "horizontal", "margin": "xs",
+            "alignItems": "center", "backgroundColor": bg_color,
+            "cornerRadius": "sm", "paddingAll": "xs",
+            "contents": [
+                {"type": "text", "text": str(pos), "size": "xs", "flex": 1, "align": "center", "color": "#888888"},
+                {
+                    "type": "box", "layout": "horizontal", "flex": 4, "alignItems": "center",
+                    "contents": [
+                        {"type": "image", "url": safe_url(logo), "size": "xxs", "flex": 0},
+                        {"type": "text", "text": name, "size": "xs", "margin": "sm", "flex": 1,
+                         "weight": "bold" if is_fav else "regular", "wrap": True},
+                    ]
+                },
+                {"type": "text", "text": str(played), "size": "xs", "align": "center", "flex": 1},
+                {"type": "text", "text": gd_text,     "size": "xs", "align": "center", "flex": 1, "color": "#666666"},
+                {"type": "text", "text": str(pts),    "size": "xs", "align": "end", "weight": "bold", "flex": 2, "margin": "sm"},
+            ]
+        })
+        
+    return {"type": "box", "layout": "vertical", "contents": rows}
+
 def build_standings_flex(standings_groups) -> FlexDict:
+    is_group_based = any(s.get("group") is not None for s in standings_groups)
+    
+    if is_group_based:
+        total_standings = [s for s in standings_groups if s.get("type") == "TOTAL"]
+        total_standings.sort(key=lambda s: s.get("group", ""))
+        
+        bubbles = []
+        for i in range(0, len(total_standings), 2):
+            pair = total_standings[i:i+2]
+            
+            pair_names = []
+            contents = []
+            for s in pair:
+                group_clean = s.get("group", "").replace("GROUP_", "Group ")
+                pair_names.append(group_clean)
+                contents.append(make_group_box(s))
+                
+            header_title = "🏆 WORLD CUP - " + " & ".join(pair_names)
+            
+            bubbles.append({
+                "type": "bubble", "size": "mega",
+                "header": {
+                    "type": "box", "layout": "vertical", "backgroundColor": "#7F0F25",
+                    "contents": [
+                        {"type": "text", "text": header_title, "weight": "bold", "color": "#D4AF37", "size": "sm"},
+                    ]
+                },
+                "body": {
+                    "type": "box", "layout": "vertical", "paddingAll": "md",
+                    "contents": contents
+                },
+                "footer": {
+                    "type": "box", "layout": "vertical",
+                    "contents": [{"type": "text", "text": f"Updated: {datetime.now(Config.TZ).strftime('%H:%M')}",
+                                   "size": "xxs", "align": "center", "color": "#aaaaaa"}]
+                }
+            })
+            
+        return {
+            "type": "carousel",
+            "contents": bubbles
+        }
+
     total = next((s for s in standings_groups if s.get("type") == "TOTAL"), standings_groups[0])
     table = total.get("table", [])
 
@@ -181,6 +284,18 @@ def build_standings_flex(standings_groups) -> FlexDict:
     }
 
 def build_upcoming_flex(matches) -> FlexDict:
+    STAGE_TRANSLATION = {
+        "GROUP_STAGE": "รอบแบ่งกลุ่ม",
+        "LAST_32": "รอบ 32 ทีมสุดท้าย",
+        "ROUND_OF_32": "รอบ 32 ทีมสุดท้าย",
+        "LAST_16": "รอบ 16 ทีมสุดท้าย",
+        "ROUND_OF_16": "รอบ 16 ทีมสุดท้าย",
+        "QUARTER_FINALS": "รอบ 8 ทีมสุดท้าย",
+        "SEMI_FINALS": "รอบรองชนะเลิศ",
+        "THIRD_PLACE": "รอบชิงอันดับ 3",
+        "FINAL": "รอบชิงชนะเลิศ"
+    }
+
     rows = []
     for m in matches[:10]:
         home = m["homeTeam"]["name"]
@@ -196,10 +311,14 @@ def build_upcoming_flex(matches) -> FlexDict:
         h_logo = m["homeTeam"].get("crest", "")
         a_logo = m["awayTeam"].get("crest", "")
 
+        stage_raw = m.get("stage", "")
+        stage_th = STAGE_TRANSLATION.get(stage_raw, "")
+        stage_text = f" ({stage_th})" if stage_th else ""
+
         rows.append({
             "type": "box", "layout": "vertical", "margin": "md",
             "contents": [
-                {"type": "text", "text": f"🕐 {bkk_time}", "size": "xs", "color": "#888888"},
+                {"type": "text", "text": f"🕐 {bkk_time}{stage_text}", "size": "xs", "color": "#888888"},
                 {
                     "type": "box", "layout": "horizontal", "margin": "sm", "alignItems": "center",
                     "contents": [
@@ -226,6 +345,66 @@ def build_upcoming_flex(matches) -> FlexDict:
                           "color": "#ffffff", "weight": "bold", "size": "md", "align": "center"}]
         },
         "body": {"type": "box", "layout": "vertical", "contents": rows},
+    }
+
+def build_scorers_flex(scorers) -> FlexDict:
+    rows = [
+        # Table Header
+        {
+            "type": "box", "layout": "horizontal",
+            "contents": [
+                {"type": "text", "text": "#",      "weight": "bold", "size": "xs", "flex": 1, "align": "center"},
+                {"type": "text", "text": "Player", "weight": "bold", "size": "xs", "flex": 4},
+                {"type": "text", "text": "Team",   "weight": "bold", "size": "xs", "flex": 3},
+                {"type": "text", "text": "Goals",  "weight": "bold", "size": "xs", "align": "end", "flex": 2},
+            ]
+        },
+        {"type": "separator", "margin": "sm"},
+    ]
+    
+    for idx, s in enumerate(scorers[:10], start=1):
+        player_name = s.get("player", {}).get("name", "Unknown")
+        team_name = s.get("team", {}).get("name", "Unknown")
+        team_logo = s.get("team", {}).get("crest", "")
+        goals = s.get("goals", 0)
+        
+        rows.append({
+            "type": "box", "layout": "horizontal", "margin": "md",
+            "alignItems": "center",
+            "contents": [
+                {"type": "text", "text": str(idx), "size": "xs", "flex": 1, "align": "center", "color": "#888888"},
+                {"type": "text", "text": player_name, "size": "xs", "flex": 4, "weight": "bold", "wrap": True},
+                {
+                    "type": "box", "layout": "horizontal", "flex": 3, "alignItems": "center",
+                    "contents": [
+                        {"type": "image", "url": safe_url(team_logo), "size": "xxs", "flex": 0},
+                        {"type": "text", "text": team_name, "size": "xs", "margin": "sm", "flex": 1, "wrap": True}
+                    ]
+                },
+                {"type": "text", "text": str(goals), "size": "sm", "align": "end", "weight": "bold", "flex": 2, "color": "#7F0F25"}
+            ]
+        })
+        rows.append({"type": "separator", "margin": "sm"})
+        
+    is_wc = ACTIVE_COMPETITION == WC_CODE
+    header_color = "#7F0F25" if is_wc else "#38003c"
+    header_title = "🏆 WORLD CUP TOP SCORERS" if is_wc else "⚽ EPL TOP SCORERS"
+    
+    return {
+        "type": "bubble", "size": "mega",
+        "header": {
+            "type": "box", "layout": "vertical", "backgroundColor": header_color,
+            "contents": [
+                {"type": "text", "text": header_title, "weight": "bold", "color": "#D4AF37" if is_wc else "#ffffff", "size": "sm"},
+                {"type": "text", "text": "Top Scorers Leaderboard", "weight": "bold", "color": "#ffffff", "size": "xl"},
+            ]
+        },
+        "body": {"type": "box", "layout": "vertical", "paddingAll": "md", "contents": rows},
+        "footer": {
+            "type": "box", "layout": "vertical",
+            "contents": [{"type": "text", "text": f"Updated: {datetime.now(Config.TZ).strftime('%H:%M')}",
+                           "size": "xxs", "align": "center", "color": "#aaaaaa"}]
+        }
     }
 
 def build_countdown_flex(days_left: int) -> FlexDict:
