@@ -22,10 +22,16 @@ def safe_group_id(source) -> str:
             return val
     return ""
 
+def normalize_team_name(name: str) -> str:
+    n = str(name).strip().lower()
+    # Strip common suffixes and descriptors to match names safely
+    n = n.replace(" fc", "").replace(" afc", "").replace(" united", "").replace(" club", "")
+    return n.strip()
+
 def is_exact_team_match(name: str, targets: list[str]) -> bool:
-    normalized = str(name).strip().lower()
+    normalized_name = normalize_team_name(name)
     return any(
-        normalized == str(target).strip().lower()
+        normalized_name == normalize_team_name(target)
         for target in targets
     )
 
