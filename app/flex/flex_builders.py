@@ -273,7 +273,7 @@ def build_countdown_flex(days_left: int) -> FlexDict:
             "type": "box", "layout": "vertical", "backgroundColor": "#111111", "paddingAll": "lg",
             "contents": [
                 # Huge Countdown Number Text
-                {"type": "text", "text": f"{days_left} DAYS TO GO!", "weight": "bold", "color": "#D4AF37", "size": "xxl", "align": "center"},
+                {"type": "text", "text": f"เหลืออีก {days_left} วัน", "weight": "bold", "color": "#D4AF37", "size": "xxl", "align": "center"},
                 # Quote Text
                 {"type": "text", "text": quote, "color": "#cccccc", "size": "sm", "wrap": True, "align": "center", "margin": "md"},
                 # Progress Bar Area
