@@ -1,9 +1,11 @@
+import random
 from datetime import datetime
 from app.config import Config
 from app.utils.constants import WORLD_CUP_START
 from app.flex.flex_builders import build_countdown_flex
 from app.services.line_service import broadcast
 from app.utils.logger import logger
+from app.utils.greetings import FOOTBALL_GREETINGS
 
 def check_world_cup_countdown():
     """Calculates remaining days and broadcasts a premium countdown Flex Message every morning."""
@@ -46,7 +48,10 @@ def check_world_cup_countdown():
                         pass
                 
                 if today_matches:
-                    briefing_lines = ["🌅 สวัสดีตอนเช้าครับแฟนบอลโลก! 🏆\nวันนี้มีศึกดวลแข้งฟุตบอลโลกรอคุณอยู่ ดังนี้:\n"]
+                    quote = random.choice(FOOTBALL_GREETINGS)
+                    briefing_lines = [
+                        f"🌅 สวัสดีตอนเช้าครับแฟนบอลโลก! 🏆\n\n💬 \"{quote}\"\n\nวันนี้มีศึกดวลแข้งฟุตบอลโลกรอคุณอยู่ ดังนี้:\n"
+                    ]
                     for m in today_matches:
                         home = m["homeTeam"]["name"]
                         away = m["awayTeam"]["name"]
@@ -70,10 +75,12 @@ def check_world_cup_countdown():
                     briefing_lines.append("\nอย่าลืมเฝ้าหน้าจอเชียร์ทีมรักกันนะครับ! ⚽🔥")
                     broadcast("\n".join(briefing_lines))
                 else:
+                    quote = random.choice(FOOTBALL_GREETINGS)
                     rest_day_text = (
-                        "🌅 สวัสดีตอนเช้าวันพักแข้งครับแฟนบอลโลก! 🏆\n\n"
-                        "วันนี้ไม่มีโปรแกรมการแข่งขันฟุตบอลโลก (วันพักผ่อนของนักกีฬาและทีมงาน) 😴\n"
-                        "รักษาสุขภาพและเตรียมกำลังใจให้พร้อมสำหรับรอบถัดไปนะครับ! ⚽☕"
+                        f"🌅 สวัสดีตอนเช้าวันพักแข้งครับแฟนบอลโลก! 🏆\n\n"
+                        f"💬 \"{quote}\"\n\n"
+                        f"วันนี้ไม่มีโปรแกรมการแข่งขันฟุตบอลโลก (วันพักผ่อนของนักกีฬาและทีมงาน) 😴\n"
+                        f"รักษาสุขภาพและเตรียมกำลังใจให้พร้อมสำหรับรอบถัดไปนะครับ! ⚽☕"
                     )
                     broadcast(rest_day_text)
             
