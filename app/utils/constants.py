@@ -9,8 +9,8 @@ UCL_CODE = "CL"
 class DynamicCompetition:
     def __str__(self) -> str:
         bkk_now = datetime.now(Config.TZ)
-        # Revert automatically after 12:00 PM BKK time on May 31, 2026
-        cutoff = Config.TZ.localize(datetime(2026, 5, 31, 12, 0, 0))
+        # Revert automatically after 06:00 AM BKK time on May 31, 2026
+        cutoff = Config.TZ.localize(datetime(2026, 5, 31, 6, 0, 0))
         return UCL_CODE if bkk_now < cutoff else WC_CODE
 
     def __eq__(self, other: object) -> bool:
