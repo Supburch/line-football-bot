@@ -244,22 +244,22 @@ def build_countdown_flex(days_left: int) -> FlexDict:
                     "aspectMode": "cover",
                     "aspectRatio": "1:1"
                 },
-                # Dynamic Overlay: Gold Number exactly over the '...' placeholder
+                # Dynamic Overlay: Large Black Number inside the gold card's blank left area
                 {
                     "type": "box",
                     "layout": "vertical",
                     "position": "absolute",
-                    "offsetBottom": "29px",
-                    "offsetStart": "49%",
-                    "offsetEnd": "43%",
+                    "offsetBottom": "43px",
+                    "offsetStart": "15%",
+                    "offsetEnd": "40%",
                     "alignItems": "center",
                     "justifyContent": "center",
                     "contents": [
                         {
                             "type": "text",
                             "text": f"{days_left}",
-                            "size": "lg",
-                            "color": "#F3C562",
+                            "size": "5xl",
+                            "color": "#000000",
                             "weight": "bold",
                             "align": "center"
                         }
