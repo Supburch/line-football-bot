@@ -4,7 +4,7 @@ from app.services.football_service import svc
 from app.services.line_service import broadcast, BroadcastResult
 from app.repositories.supabase_client import get_sent_event, commit_match_state
 from app.utils.helpers import is_watched_match, first_not_none
-from app.flex.flex_builders import build_goal_flex, build_var_flex
+from app.flex.flex_builders import build_goal_flex, build_var_flex, build_penalty_shootout_flex
 from app.utils.constants import EPL_CODE, WC_CODE, ACTIVE_COMPETITION, CLEANUP_MATCH_STATUSES
 from app.utils.logger import logger
 from app.services.match_state_manager import MatchStateManager
@@ -76,6 +76,63 @@ def monitor_goals(live_matches: list = None):
                 as_ = int(as_)
             except (ValueError, TypeError):
                 hs = as_ = 0
+
+            # Smart Penalty Shootout Tracking
+            duration = score.get("duration")
+            penalties = score.get("penalties", {})
+            pen_hs = penalties.get("home")
+            pen_as = penalties.get("away")
+            
+            is_pso = (duration == "PENALTY_SHOOTOUT") or (pen_hs is not None and pen_as is not None)
+            
+            if is_pso:
+                pen_hs = int(pen_hs) if pen_hs is not None else 0
+                pen_as = int(pen_as) if pen_as is not None else 0
+                pen_fid = f"{fid}_pen"
+                
+                # Check memory state for shootout
+                if state_manager.get_score(pen_fid) is None:
+                    event_key_pen = f"{pen_fid}-{pen_hs}-{pen_as}"
+                    if get_sent_event(event_key_pen):
+                        state_manager.commit_memory(pen_fid, pen_hs, pen_as)
+                    else:
+                        state_manager.commit_memory(pen_fid, 0, 0)
+                        
+                prev_pen = state_manager.get_score(pen_fid)
+                if prev_pen is not None:
+                    prev_pen_hs, prev_pen_as = prev_pen
+                    if pen_hs > prev_pen_hs or pen_as > prev_pen_as:
+                        # Shootout score changed!
+                        event_key_pen = f"{pen_fid}-{pen_hs}-{pen_as}"
+                        
+                        if state_manager.can_retry_event(event_key_pen) and not get_sent_event(event_key_pen):
+                            if pen_hs > prev_pen_hs:
+                                scorer_text = f"🎯 {home_name} SCORED penalty! ({pen_hs} - {pen_as})"
+                            else:
+                                scorer_text = f"🎯 {away_name} SCORED penalty! ({pen_hs} - {pen_as})"
+                                
+                            flex_msg = build_penalty_shootout_flex(
+                                home_name, away_name, hs, as_, pen_hs, pen_as,
+                                h_logo=m["homeTeam"].get("crest", ""),
+                                a_logo=m["awayTeam"].get("crest", ""),
+                                scorer_text=scorer_text, comp_code=comp_code
+                            )
+                            
+                            result = broadcast(flex_msg)
+                            if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
+                                commit_res = commit_match_state(pen_fid, event_key_pen, pen_hs, pen_as)
+                                if commit_res.success:
+                                    state_manager.commit_memory(pen_fid, pen_hs, pen_as)
+                                    state_manager.clear_event_failure(event_key_pen)
+                                    logger.info("pso_score_committed", extra={"match_id": pen_fid, "event_key": event_key_pen})
+                                else:
+                                    state_manager.register_event_failure(event_key_pen, is_fatal=False)
+                            elif result == BroadcastResult.RETRYABLE_FAIL:
+                                state_manager.register_event_failure(event_key_pen, is_fatal=False)
+                            else:
+                                state_manager.register_event_failure(event_key_pen, is_fatal=True)
+                # Continue loop to skip regular score transition for this match
+                continue
 
             # Only initialize state if we've never seen it in memory
             if state_manager.get_score(fid) is None:

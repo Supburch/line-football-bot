@@ -129,6 +129,65 @@ def build_var_flex(h_name: str, a_name: str, hs: int, as_: int, h_logo: str, a_l
         }
     }
 
+def build_penalty_shootout_flex(h_name: str, a_name: str, hs: int, as_: int,
+                                pen_hs: int, pen_as: int, h_logo: str, a_logo: str,
+                                scorer_text: str = "", comp_code: str = "PL") -> FlexDict:
+    if comp_code == WC_CODE:
+        header_bg = "#7F0F25"
+        header_text = "🏆 FIFA WORLD CUP"
+        header_text_color = "#D4AF37"
+        badge_logo = WC_LOGO
+        shootout_color = "#D4AF37"
+    elif comp_code == UCL_CODE:
+        header_bg = "#0B1E36"
+        header_text = "⭐ UEFA CHAMPIONS LEAGUE"
+        header_text_color = "#D4AF37"
+        badge_logo = UCL_LOGO
+        shootout_color = "#3A86FF"
+    else:
+        header_bg = "#38003c"
+        header_text = "⚽ PREMIER LEAGUE"
+        header_text_color = "#FFFFFF"
+        badge_logo = EPL_LOGO
+        shootout_color = "#e11d48"
+
+    return {
+        "type": "bubble",
+        "header": {
+            "type": "box", "layout": "horizontal", "backgroundColor": header_bg,
+            "paddingAll": "md", "alignItems": "center",
+            "contents": [
+                {"type": "image", "url": safe_url(badge_logo), "size": "xxs", "flex": 0},
+                {"type": "text", "text": header_text, "weight": "bold",
+                 "color": header_text_color, "size": "sm", "margin": "md", "flex": 1}
+            ]
+        },
+        "body": {
+            "type": "box", "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "🎯 PENALTY SHOOTOUT", "weight": "bold",
+                 "color": shootout_color, "size": "lg", "align": "center"},
+                {
+                    "type": "box", "layout": "horizontal", "margin": "lg", "alignItems": "center",
+                    "contents": [
+                        {"type": "image", "url": safe_url(h_logo), "size": "sm", "flex": 2},
+                        {
+                            "type": "box", "layout": "vertical", "flex": 3, "alignItems": "center",
+                            "contents": [
+                                {"type": "text", "text": f"{hs} - {as_}", "size": "xl", "weight": "bold", "align": "center"},
+                                {"type": "text", "text": f"PSO: {pen_hs} - {pen_as}", "size": "sm", "weight": "bold", "color": "#888888", "margin": "xs"}
+                            ]
+                        },
+                        {"type": "image", "url": safe_url(a_logo), "size": "sm", "flex": 2},
+                    ]
+                },
+                {"type": "text", "text": f"{h_name}  vs  {a_name}",
+                 "margin": "md", "align": "center", "color": "#666666", "size": "sm"},
+                {"type": "text", "text": scorer_text, "size": "sm", "align": "center", "weight": "bold", "color": "#1a1a1a", "margin": "md"}
+            ]
+        }
+    }
+
 def make_group_box(group_data) -> dict:
     group_name = group_data.get("group", "Unknown Group").replace("GROUP_", "GROUP ")
     table = group_data.get("table", [])
