@@ -8,7 +8,7 @@ DEFAULT_LOGO = "https://via.placeholder.com/100/CCCCCC/FFFFFF?text=?"
 
 # World Cup Countdown Settings
 WORLD_CUP_START = "2026-06-09" # วันที่ 9 มิถุนายน 2026 (10 วันจากนี้)
-COUNTDOWN_COVER = "https://i.imgur.com/K5fB39L.png" # แนะนำให้อัปโหลดไฟล์ต้นแบบ world_cup_countdown ไปตั้งค่าจริงบน CDN
+COUNTDOWN_COVER = "https://lh3.googleusercontent.com/d/1PKGf6u5AZiKqhCouBr2sLncYcEGhCVmr"
 
 # Premium Competition Logos
 EPL_LOGO = "https://i.imgur.com/vH1N3mF.png"  # Premium EPL logo link or fallback
