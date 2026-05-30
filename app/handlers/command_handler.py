@@ -1,7 +1,9 @@
 from typing import Any
+from datetime import datetime
+from app.config import Config
 from app.services.football_service import svc
-from app.flex.flex_builders import build_standings_flex, build_upcoming_flex
-from app.utils.constants import EPL_CODE
+from app.flex.flex_builders import build_standings_flex, build_upcoming_flex, build_scorers_flex
+from app.utils.constants import ACTIVE_COMPETITION, WC_CODE
 
 HELP_TEXT = (
     "⚽ สวัสดี! FootballBot ยินดีให้บริการ\n\n"
@@ -10,17 +12,19 @@ HELP_TEXT = (
     "⚽ บอตเว้ย ผลบอล\n"
     "🔴 บอตเว้ย สด\n"
     "🏆 บอตเว้ย ตาราง\n"
-    "📅 บอตเว้ย โปรแกรม\n\n"
+    "📅 บอตเว้ย โปรแกรม\n"
+    "🥾 บอตเว้ย ดาวซัลโว\n\n"
     "🔔 บริการแจ้งเตือนประตูอัตโนมัติทีมชาติอังกฤษ"
 )
 
 def build_live_scores() -> str:
-    data = svc.fetch(f"competitions/{EPL_CODE}/matches?status=LIVE", ttl=30)
+    data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/matches?status=LIVE", ttl=30)
     if not isinstance(data, dict): return "📭 ขณะนี้ไม่มีการแข่งขัน"
     matches = data.get("matches", [])
     if not matches: return "📭 ขณะนี้ไม่มีการแข่งขัน"
 
-    lines = ["🔴 EPL LIVE SCORES", "─" * 20]
+    title = "🏆 WORLD CUP LIVE SCORES" if ACTIVE_COMPETITION == WC_CODE else "🔴 EPL LIVE SCORES"
+    lines = [title, "─" * 20]
     for m in matches:
         home   = m["homeTeam"]["name"]
         away   = m["awayTeam"]["name"]
@@ -31,12 +35,13 @@ def build_live_scores() -> str:
     return "\n".join(lines)
 
 def build_recent_results() -> str:
-    data = svc.fetch(f"competitions/{EPL_CODE}/matches?status=FINISHED", ttl=120)
+    data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/matches?status=FINISHED", ttl=120)
     if not isinstance(data, dict): return "📭 ไม่มีผลการแข่งขันล่าสุด"
     matches = data.get("matches", [])
     if not matches: return "📭 ไม่มีผลการแข่งขันล่าสุด"
 
-    lines = ["⚽ ผลบอล EPL ล่าสุด", "─" * 20]
+    title = "⚽ ผลบอล WORLD CUP ล่าสุด" if ACTIVE_COMPETITION == WC_CODE else "⚽ ผลบอล EPL ล่าสุด"
+    lines = [title, "─" * 20]
     # เอา 10 นัดล่าสุด (อยู่ท้ายสุดของ array) และเรียงให้ล่าสุดอยู่บนสุด
     recent_matches = reversed(matches[-10:])
     for m in recent_matches:
@@ -48,24 +53,32 @@ def build_recent_results() -> str:
     return "\n".join(lines)
 
 def build_standings() -> Any:
-    data = svc.fetch(f"competitions/{EPL_CODE}/standings", ttl=14400)
+    data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/standings", ttl=14400)
     if not isinstance(data, dict): return "📭 ยังไม่มีข้อมูลตารางคะแนน"
     standings_groups = data.get("standings", [])
     if not standings_groups: return "📭 ยังไม่มีข้อมูลตารางคะแนน"
     return build_standings_flex(standings_groups)
 
 def build_upcoming() -> Any:
-    data = svc.fetch(f"competitions/{EPL_CODE}/matches?status=SCHEDULED", ttl=300)
+    data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/matches?status=SCHEDULED", ttl=300)
     if not isinstance(data, dict): return "📭 ตอนนี้ไม่มีโปรแกรมการแข่งขัน"
     matches = data.get("matches", [])
     if not matches: return "📭 ตอนนี้ไม่มีโปรแกรมการแข่งขัน"
     return build_upcoming_flex(matches)
+
+def build_scorers() -> Any:
+    data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/scorers", ttl=14400)
+    if not isinstance(data, dict): return "📭 ยังไม่มีข้อมูลดาวซัลโว"
+    scorers = data.get("scorers", [])
+    if not scorers: return "📭 ยังไม่มีข้อมูลดาวซัลโว"
+    return build_scorers_flex(scorers)
 
 COMMAND_MAP = [
     (("สด", "live"), build_live_scores),
     (("ตาราง", "table", "standing"), build_standings),
     (("ผล", "ผลบอล", "result"), build_recent_results),
     (("โปรแกรม", "fixture", "นัดถัดไป"), build_upcoming),
+    (("ดาวซัลโว", "scorer", "scorers", "รองเท้าทองคำ"), build_scorers),
 ]
 
 def handle_command(cmd_text: str) -> Any:

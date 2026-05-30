@@ -1,6 +1,6 @@
 import re
 from typing import Optional
-from app.utils.constants import DEFAULT_LOGO, BOT_PREFIX, WATCHED_TEAMS
+from app.utils.constants import DEFAULT_LOGO, BOT_PREFIX, WATCHED_TEAMS, WATCHED_COUNTRIES, WC_CODE
 
 def safe_url(url: Optional[str]) -> str:
     if not url or not isinstance(url, str):
@@ -22,8 +22,9 @@ def safe_group_id(source) -> str:
             return val
     return ""
 
-def is_watched_match(home: str, away: str) -> bool:
+def is_watched_match(home: str, away: str, comp_code: Optional[str] = None) -> bool:
+    target_list = WATCHED_COUNTRIES if comp_code == WC_CODE else WATCHED_TEAMS
     return any(
         t.lower() in str(home).lower() or t.lower() in str(away).lower()
-        for t in WATCHED_TEAMS
+        for t in target_list
     )
