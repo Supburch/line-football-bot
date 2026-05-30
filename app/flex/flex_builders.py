@@ -1,7 +1,7 @@
 from datetime import datetime
 from app.config import Config
 from app.utils.helpers import safe_url, format_minute, is_exact_team_match
-from app.utils.constants import WATCHED_TEAMS, WATCHED_COUNTRIES, EPL_LOGO, WC_LOGO, WC_CODE, ACTIVE_COMPETITION, COUNTDOWN_COVER, STAGE_TRANSLATION
+from app.utils.constants import WATCHED_TEAMS, WATCHED_COUNTRIES, EPL_LOGO, WC_LOGO, WC_CODE, UCL_LOGO, UCL_CODE, ACTIVE_COMPETITION, COUNTDOWN_COVER, STAGE_TRANSLATION
 from app.utils.aliases import FlexDict
 
 def build_goal_flex(h_name: str, a_name: str, hs: int, as_: int,
@@ -14,6 +14,12 @@ def build_goal_flex(h_name: str, a_name: str, hs: int, as_: int,
         header_text_color = "#D4AF37"  # Gold text
         badge_logo = WC_LOGO
         goal_color = "#D4AF37"
+    elif comp_code == UCL_CODE:
+        header_bg = "#0B1E36"          # UCL Midnight Blue
+        header_text = "⭐ UEFA CHAMPIONS LEAGUE"
+        header_text_color = "#D4AF37"  # Gold text
+        badge_logo = UCL_LOGO
+        goal_color = "#3A86FF"         # UCL Electric Blue
     else:
         header_bg = "#38003c"          # EPL Purple
         header_text = "⚽ PREMIER LEAGUE"
@@ -76,6 +82,12 @@ def build_var_flex(h_name: str, a_name: str, hs: int, as_: int, h_logo: str, a_l
         header_text = "🏆 FIFA WORLD CUP"
         header_text_color = "#D4AF37"
         badge_logo = WC_LOGO
+        var_color = "#ef4444"
+    elif comp_code == UCL_CODE:
+        header_bg = "#0B1E36"
+        header_text = "⭐ UEFA CHAMPIONS LEAGUE"
+        header_text_color = "#D4AF37"
+        badge_logo = UCL_LOGO
         var_color = "#ef4444"
     else:
         header_bg = "#38003c"
@@ -271,8 +283,16 @@ def build_standings_flex(standings_groups) -> FlexDict:
         })
 
     is_wc = ACTIVE_COMPETITION == WC_CODE
-    header_color = "#7F0F25" if is_wc else "#3D195B"
-    header_title = "FIFA WORLD CUP" if is_wc else "PREMIER LEAGUE"
+    is_ucl = ACTIVE_COMPETITION == UCL_CODE
+    if is_wc:
+        header_color = "#7F0F25"
+        header_title = "FIFA WORLD CUP"
+    elif is_ucl:
+        header_color = "#0B1E36"
+        header_title = "UEFA CHAMPIONS LEAGUE"
+    else:
+        header_color = "#3D195B"
+        header_title = "PREMIER LEAGUE"
 
     return {
         "type": "bubble", "size": "mega",
@@ -330,8 +350,16 @@ def build_upcoming_flex(matches) -> FlexDict:
         })
 
     is_wc = ACTIVE_COMPETITION == WC_CODE
-    header_color = "#7F0F25" if is_wc else "#38003c"
-    header_title = "🏆 WORLD CUP FIXTURES" if is_wc else "📅 EPL FIXTURES"
+    is_ucl = ACTIVE_COMPETITION == UCL_CODE
+    if is_wc:
+        header_color = "#7F0F25"
+        header_title = "🏆 WORLD CUP FIXTURES"
+    elif is_ucl:
+        header_color = "#0B1E36"
+        header_title = "⭐ UCL FIXTURES"
+    else:
+        header_color = "#38003c"
+        header_title = "📅 EPL FIXTURES"
 
     return {
         "type": "bubble",
@@ -377,14 +405,22 @@ def build_scorers_flex(scorers) -> FlexDict:
                         {"type": "text", "text": team_name, "size": "xs", "margin": "sm", "flex": 1, "wrap": True}
                     ]
                 },
-                {"type": "text", "text": str(goals), "size": "sm", "align": "end", "weight": "bold", "flex": 2, "color": "#7F0F25"}
+                {"type": "text", "text": str(goals), "size": "sm", "align": "end", "weight": "bold", "flex": 2, "color": "#D4AF37" if ACTIVE_COMPETITION in (WC_CODE, UCL_CODE) else "#e11d48"}
             ]
         })
         rows.append({"type": "separator", "margin": "sm"})
         
     is_wc = ACTIVE_COMPETITION == WC_CODE
-    header_color = "#7F0F25" if is_wc else "#38003c"
-    header_title = "🏆 WORLD CUP TOP SCORERS" if is_wc else "⚽ EPL TOP SCORERS"
+    is_ucl = ACTIVE_COMPETITION == UCL_CODE
+    if is_wc:
+        header_color = "#7F0F25"
+        header_title = "🏆 WORLD CUP TOP SCORERS"
+    elif is_ucl:
+        header_color = "#0B1E36"
+        header_title = "⭐ UCL TOP SCORERS"
+    else:
+        header_color = "#38003c"
+        header_title = "⚽ EPL TOP SCORERS"
     
     return {
         "type": "bubble", "size": "mega",

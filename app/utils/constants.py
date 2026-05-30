@@ -1,7 +1,8 @@
 # Core Constants
 EPL_CODE = "PL"
 WC_CODE = "WC"
-ACTIVE_COMPETITION = WC_CODE   # Pivot all resources (EPL / World Cup) dynamically
+UCL_CODE = "CL"
+ACTIVE_COMPETITION = UCL_CODE   # UCL Mode Activated for tonight's UCL Final!
 BOT_PREFIX = "บอตเว้ย"
 WAKE_WORDS = ["บอตเว้ย"]
 DEFAULT_LOGO = "https://via.placeholder.com/100/CCCCCC/FFFFFF?text=?"
@@ -13,6 +14,7 @@ COUNTDOWN_COVER = "https://lh3.googleusercontent.com/d/1dmUN48peARmkGPud7dVyBAYK
 # Premium Competition Logos
 EPL_LOGO = "https://i.imgur.com/vH1N3mF.png"  # Premium EPL logo link or fallback
 WC_LOGO = "https://i.imgur.com/K5fB39L.png"   # Premium World Cup gold logo link or fallback
+UCL_LOGO = "https://i.imgur.com/83p5HnL.png"  # Premium UCL logo link or fallback
 
 WATCHED_TEAMS = [
     "Tottenham Hotspur",
