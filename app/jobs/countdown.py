@@ -32,6 +32,20 @@ def check_world_cup_countdown():
             logger.info({"event": "wc_countdown_active_tournament", "days_past": abs(delta)})
             from app.services.football_service import svc
             
+            # Smart check: ceases morning greetings once the World Cup has officially ended
+            all_data = svc.fetch("competitions/WC/matches", ttl=14400)
+            tournament_active = False
+            if isinstance(all_data, dict):
+                all_matches = all_data.get("matches", [])
+                tournament_active = any(
+                    m.get("status") not in {"FINISHED", "CANCELLED", "POSTPONED"}
+                    for m in all_matches
+                )
+            
+            if not tournament_active:
+                logger.info({"event": "wc_countdown_tournament_ended_silencing"})
+                return
+
             data = svc.fetch("competitions/WC/matches?status=SCHEDULED", ttl=300)
             if isinstance(data, dict):
                 matches = data.get("matches", [])
