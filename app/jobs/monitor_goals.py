@@ -5,7 +5,7 @@ from app.services.line_service import broadcast, BroadcastResult
 from app.repositories.supabase_client import get_sent_event, commit_match_state
 from app.utils.helpers import is_watched_match
 from app.flex.flex_builders import build_goal_flex, build_var_flex
-from app.utils.constants import EPL_CODE
+from app.utils.constants import EPL_CODE, WC_CODE, ACTIVE_COMPETITION
 from app.utils.logger import logger
 from app.services.match_state_manager import MatchStateManager
 
@@ -43,7 +43,8 @@ def monitor_goals(live_matches: list = None):
         if live_matches is not None:
             matches = live_matches
         else:
-            data = svc.fetch(f"competitions/{EPL_CODE}/matches?status=LIVE", ttl=0)
+            # Smart Polling: Fetch only the ACTIVE_COMPETITION to save quota
+            data = svc.fetch(f"matches?competitions={ACTIVE_COMPETITION}&status=LIVE", ttl=0)
             if not isinstance(data, dict):
                 return
             matches = data.get("matches", [])
@@ -52,6 +53,7 @@ def monitor_goals(live_matches: list = None):
             return
 
         for m in matches:
+            comp_code = m.get("competition", {}).get("code", EPL_CODE)
             home_name = m["homeTeam"]["name"]
             away_name = m["awayTeam"]["name"]
             status = m.get("status", "")
@@ -62,7 +64,7 @@ def monitor_goals(live_matches: list = None):
                 state_manager.cleanup_match(fid)
                 continue
                 
-            if not is_watched_match(home_name, away_name):
+            if not is_watched_match(home_name, away_name, comp_code):
                 continue
 
             score = m.get("score", {})
@@ -131,8 +133,8 @@ def monitor_goals(live_matches: list = None):
             
             if is_var:
                 scorer = state_manager.get_last_scorer(fid)
-                flex_msg = build_var_flex(home_name, away_name, hs, as_, h_logo, a_logo, scorer)
-                logger.info({"event": "var_detected", "match_id": fid, "event_key": event_key, "scorer_lost": scorer})
+                flex_msg = build_var_flex(home_name, away_name, hs, as_, h_logo, a_logo, scorer, comp_code=comp_code)
+                logger.info({"event": "var_detected", "match_id": fid, "event_key": event_key, "scorer_lost": scorer, "competition": comp_code})
             else:
                 goals = m.get("goals", [])
                 scorer = ""
@@ -141,8 +143,8 @@ def monitor_goals(live_matches: list = None):
                     last_g = goals[-1]
                     scorer = (last_g.get("scorer") or {}).get("name", "")
                     minute_s = str(last_g.get("minute", ""))
-                flex_msg = build_goal_flex(home_name, away_name, hs, as_, h_logo, a_logo, scorer, minute_s)
-                logger.info({"event": "goal_detected", "match_id": fid, "score": f"{hs}-{as_}", "scorer": scorer, "event_key": event_key})
+                flex_msg = build_goal_flex(home_name, away_name, hs, as_, h_logo, a_logo, scorer, minute_s, comp_code=comp_code)
+                logger.info({"event": "goal_detected", "match_id": fid, "score": f"{hs}-{as_}", "scorer": scorer, "event_key": event_key, "competition": comp_code})
 
             # BROADCAST FIRST
             result = broadcast(flex_msg)

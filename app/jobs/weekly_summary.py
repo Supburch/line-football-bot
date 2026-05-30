@@ -5,7 +5,7 @@ from app.services.football_service import svc
 from app.services.line_service import broadcast
 from app.repositories.supabase_client import get_sent_event, mark_sent_event
 from app.utils.helpers import is_watched_match
-from app.utils.constants import WATCHED_TEAMS, EPL_CODE
+from app.utils.constants import WATCHED_TEAMS, ACTIVE_COMPETITION
 
 def check_weekly_summary():
     now = datetime.now(timezone.utc)
@@ -13,7 +13,7 @@ def check_weekly_summary():
     sunday = (now - timedelta(days=now.weekday()) + timedelta(days=6)).strftime("%Y-%m-%d")
 
     data = svc.fetch(
-        f"competitions/{EPL_CODE}/matches?dateFrom={monday}&dateTo={sunday}",
+        f"competitions/{ACTIVE_COMPETITION}/matches?dateFrom={monday}&dateTo={sunday}",
         ttl=300,
     )
     if not isinstance(data, dict):

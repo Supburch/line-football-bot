@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from app.config import Config
 from app.services.football_service import svc
 from app.jobs.monitor_goals import monitor_goals
-from app.utils.constants import EPL_CODE
+from app.utils.constants import ACTIVE_COMPETITION
 
 class SchedulerState:
     CURRENT_POLL_MODE = "slow"
@@ -17,7 +17,7 @@ def run_smart_schedule(scheduler):
     date_from = (now_utc - timedelta(days=1)).strftime("%Y-%m-%d")
     date_to = (now_utc + timedelta(days=1)).strftime("%Y-%m-%d")
     data = svc.fetch(
-        f"competitions/{EPL_CODE}/matches?dateFrom={date_from}&dateTo={date_to}",
+        f"competitions/{ACTIVE_COMPETITION}/matches?dateFrom={date_from}&dateTo={date_to}",
         ttl=1800,
     )
 
