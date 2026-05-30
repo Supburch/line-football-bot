@@ -22,6 +22,9 @@ class MatchStateManager:
         
         # event_key -> {"retry_count": 0, "next_retry_at": timestamp}
         self._failed_events: Dict[str, Dict] = {}
+        
+        # In-flight set: event_keys currently being broadcast (duplicate guard across restarts)
+        self._in_flight: set = set()
 
     def get_score(self, fid: str) -> Optional[Tuple[int, int]]:
         with self._lock:
@@ -76,7 +79,22 @@ class MatchStateManager:
     def get_last_scorer(self, fid: str) -> str:
         with self._lock:
             info = self._last_goal_info.get(fid)
-            return info.get("scorer", "Unknown player") if info else "Unknown player"
+            return info.get("scorer", "") if info else ""
+
+    def is_in_flight(self, event_key: str) -> bool:
+        """Returns True if this event is currently being processed (duplicate guard)."""
+        with self._lock:
+            return event_key in self._in_flight
+
+    def mark_in_flight(self, event_key: str):
+        """Mark event as currently being processed."""
+        with self._lock:
+            self._in_flight.add(event_key)
+
+    def clear_in_flight(self, event_key: str):
+        """Clear in-flight marker after processing complete or failed."""
+        with self._lock:
+            self._in_flight.discard(event_key)
 
     def can_retry_event(self, event_key: str) -> bool:
         """Checks if we are allowed to retry this event based on backoff logic."""

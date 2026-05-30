@@ -183,6 +183,11 @@ def monitor_goals(live_matches: list = None):
                 # We already sent this, just ensure memory is synced
                 state_manager.commit_memory(fid, hs, as_)
                 continue
+            
+            # In-flight duplicate guard (prevents double-send during deploy restart)
+            if state_manager.is_in_flight(event_key):
+                continue
+            state_manager.mark_in_flight(event_key)
 
             # Prepare Payload
             h_logo = m["homeTeam"].get("crest", "")
@@ -200,6 +205,8 @@ def monitor_goals(live_matches: list = None):
                     last_g = goals[-1]
                     scorer = (last_g.get("scorer") or {}).get("name", "")
                     minute_s = str(last_g.get("minute", ""))
+                    # Strip trailing apostrophe from minute (e.g. "45'" -> "45")
+                    minute_s = minute_s.rstrip("'")
                 flex_msg = build_goal_flex(home_name, away_name, hs, as_, h_logo, a_logo, scorer, minute_s, comp_code=comp_code)
                 logger.info("goal_detected", extra={"match_id": fid, "score": f"{hs}-{as_}", "scorer": scorer, "event_key": event_key, "competition": comp_code})
 
@@ -214,16 +221,20 @@ def monitor_goals(live_matches: list = None):
                     # Commit to memory only if DB commit succeeded (or if no DB)
                     state_manager.commit_memory(fid, hs, as_, scorer if is_goal else "")
                     state_manager.clear_event_failure(event_key)
+                    state_manager.clear_in_flight(event_key)
                     logger.info("state_committed", extra={"match_id": fid, "event_key": event_key})
                 else:
                     # DB failed, retryable
+                    state_manager.clear_in_flight(event_key)
                     state_manager.register_event_failure(event_key, is_fatal=False)
                     
             elif result == BroadcastResult.RETRYABLE_FAIL:
                 logger.warning("broadcast_retryable_fail", extra={"match_id": fid})
+                state_manager.clear_in_flight(event_key)
                 state_manager.register_event_failure(event_key, is_fatal=False)
             else:
                 logger.error("broadcast_fatal_fail", extra={"match_id": fid})
+                state_manager.clear_in_flight(event_key)
                 state_manager.register_event_failure(event_key, is_fatal=True)
 
     except Exception as e:
