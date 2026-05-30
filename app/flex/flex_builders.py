@@ -229,78 +229,47 @@ def build_upcoming_flex(matches) -> FlexDict:
     }
 
 def build_countdown_flex(days_left: int) -> FlexDict:
-    quotes = {
-        10: "ทศวรรษแห่งความมันส์กำลังจะเริ่มขึ้น! อีก 10 วันเตรียมนับถอยหลังพร้อมกัน",
-        9: "9 วันเท่านั้น! อุ่นเครื่องเสียงเชียร์ของคุณให้พร้อมก่อนวันเปิดสนาม",
-        8: "เหลืออีก 8 วัน! คืนวันประวัติศาสตร์กำลังขยับเข้ามาใกล้ทุกที",
-        7: "อีกเพียง 1 สัปดาห์เท่านั้น! ศึกเกียรติยศระดับโลกที่ทุกคนรอคอย",
-        6: "อีก 6 วัน! ความตื่นเต้นทวีคูณ ลมหายใจแห่งฟุตบอลโลกพร้อมสะกดคนทั้งโลก",
-        5: "อีก 5 วัน! 5 วันอันแสนเร้าใจ เตรียมเคลียร์คิวรอชมศึกนัดเปิดสนาม",
-        4: "อีก 4 วันเท่านั้น! นับถอยหลังครั้งประวัติศาสตร์สู่หน้าแรกของบอลโลก",
-        3: "อีก 3 วัน! ใกล้เข้ามาจนสัมผัสได้ คอบอลทุกคนเตรียมล็อกคิว",
-        2: "อีกเพียง 2 วัน! อะดรีนาลีนหลั่งไหล วันเปิดฉากศึกแชมป์ชนแชมป์ระดับโลก",
-        1: "เหลือเวลาอีก 24 ชั่วโมง! พรุ่งนี้ความตระการตาและการต่อสู้ระดับโลกจะปะทุขึ้น!",
-    }
-    quote = quotes.get(days_left, "ศึกฟุตบอลโลก มหกรรมกีฬาที่ยิ่งใหญ่ที่สุดกำลังจะระเบิดศึกความมันส์ขึ้นแล้ว!")
-
-    # Calculate progress bar (10 days out countdown fills up to 100%)
-    progress_percentage = min(max((10 - days_left) * 10, 5), 100) if days_left <= 10 else 10
-
     return {
         "type": "bubble",
-        "header": {
-            "type": "box", "layout": "vertical", "backgroundColor": "#7F0F25", "paddingAll": "lg",
-            "contents": [
-                {"type": "text", "text": "🏆 ROAD TO FIFA WORLD CUP", "weight": "bold", "color": "#D4AF37", "size": "sm", "align": "center"}
-            ]
-        },
         "hero": {
-            "type": "box", "layout": "vertical", "position": "relative",
+            "type": "box",
+            "layout": "vertical",
+            "position": "relative",
             "contents": [
-                # Background Cover Image
-                {"type": "image", "url": safe_url(COUNTDOWN_COVER), "size": "full", "aspectMode": "cover", "aspectRatio": "20:13"},
-                # Dynamic Overlay Golden Circular Badge with Days Remaining
+                # Background Cover Image (1:1 Square edge-to-edge)
                 {
-                    "type": "box", "layout": "vertical", "position": "absolute",
-                    "backgroundColor": "#D4AF37", "cornerRadius": "xxl", "width": "60px", "height": "60px",
-                    "offsetTop": "15px", "offsetRight": "15px", "alignItems": "center", "justifyContent": "center",
-                    "contents": [
-                        {"type": "text", "text": "อีก", "size": "xxs", "color": "#7F0F25", "align": "center", "weight": "bold"},
-                        {"type": "text", "text": str(days_left), "size": "lg", "color": "#7F0F25", "align": "center", "weight": "bold", "margin": "none"},
-                        {"type": "text", "text": "วัน", "size": "xxs", "color": "#7F0F25", "align": "center", "weight": "bold"}
-                    ]
-                }
-            ]
-        },
-        "body": {
-            "type": "box", "layout": "vertical", "backgroundColor": "#111111", "paddingAll": "lg",
-            "contents": [
-                # Huge Countdown Number Text
-                {"type": "text", "text": f"เหลืออีก {days_left} วัน", "weight": "bold", "color": "#D4AF37", "size": "xxl", "align": "center"},
-                # Quote Text
-                {"type": "text", "text": quote, "color": "#cccccc", "size": "sm", "wrap": True, "align": "center", "margin": "md"},
-                # Progress Bar Area
+                    "type": "image",
+                    "url": safe_url(COUNTDOWN_COVER),
+                    "size": "full",
+                    "aspectMode": "cover",
+                    "aspectRatio": "1:1"
+                },
+                # Dynamic Overlay Floating Gold Badge showing the exact remaining days
                 {
-                    "type": "box", "layout": "vertical", "margin": "lg",
+                    "type": "box",
+                    "layout": "vertical",
+                    "position": "absolute",
+                    "backgroundColor": "#D4AF37",
+                    "cornerRadius": "lg",
+                    "paddingStart": "md",
+                    "paddingEnd": "md",
+                    "paddingTop": "sm",
+                    "paddingBottom": "sm",
+                    "offsetTop": "15px",
+                    "offsetStart": "15px",
+                    "alignItems": "center",
+                    "justifyContent": "center",
                     "contents": [
                         {
-                            "type": "box", "layout": "horizontal", "height": "8px", "backgroundColor": "#2A2A2A", "cornerRadius": "md",
-                            "contents": [
-                                {
-                                    "type": "box", "layout": "vertical", "width": f"{progress_percentage}%", "backgroundColor": "#D4AF37", "height": "8px", "cornerRadius": "md",
-                                    "contents": []
-                                }
-                            ]
-                        },
-                        {"type": "text", "text": f"ความพร้อมเข้าสู่ศึกนัดเปิดสนาม: {progress_percentage}%", "color": "#888888", "size": "xxs", "align": "center", "margin": "sm"}
+                            "type": "text",
+                            "text": f"🏆 เหลืออีก {days_left} วัน",
+                            "size": "sm",
+                            "color": "#7F0F25",
+                            "weight": "bold",
+                            "align": "center"
+                        }
                     ]
                 }
-            ]
-        },
-        "footer": {
-            "type": "box", "layout": "vertical", "backgroundColor": "#7F0F25", "paddingAll": "md",
-            "contents": [
-                {"type": "text", "text": f"วันเปิดสนาม: {WORLD_CUP_START} | เชียร์พร้อมกันทาง LINE Bot 🏆", "size": "xxs", "color": "#ffffff", "align": "center"}
             ]
         }
     }
