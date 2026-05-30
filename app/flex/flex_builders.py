@@ -1,11 +1,11 @@
 from datetime import datetime
 from app.config import Config
-from app.utils.helpers import safe_url
-from app.utils.constants import WATCHED_TEAMS, WATCHED_COUNTRIES, EPL_LOGO, WC_LOGO, WC_CODE, ACTIVE_COMPETITION, COUNTDOWN_COVER, WORLD_CUP_START
+from app.utils.helpers import safe_url, format_minute, is_exact_team_match
+from app.utils.constants import WATCHED_TEAMS, WATCHED_COUNTRIES, EPL_LOGO, WC_LOGO, WC_CODE, ACTIVE_COMPETITION, COUNTDOWN_COVER, STAGE_TRANSLATION
 from app.utils.aliases import FlexDict
 
 def build_goal_flex(h_name: str, a_name: str, hs: int, as_: int,
-                    h_logo: str, a_logo: str, scorer: str = "", minute: str = "",
+                    h_logo: str, a_logo: str, scorer: str = "", minute: object = None,
                     comp_code: str = "PL") -> FlexDict:
     # Theme configuration
     if comp_code == WC_CODE:
@@ -23,7 +23,9 @@ def build_goal_flex(h_name: str, a_name: str, hs: int, as_: int,
 
     scorer_line = []
     if scorer:
-        scorer_line = [{"type": "text", "text": f"⚽ {scorer} {minute}'",
+        min_text = format_minute(minute)
+        display_time = f" {min_text}" if min_text else ""
+        scorer_line = [{"type": "text", "text": f"⚽ {scorer}{display_time}",
                         "size": "sm", "align": "center", "color": "#1a1a1a", "margin": "sm"}]
     return {
         "type": "bubble",
@@ -59,8 +61,14 @@ def build_goal_flex(h_name: str, a_name: str, hs: int, as_: int,
     }
 
 def build_var_flex(h_name: str, a_name: str, hs: int, as_: int, h_logo: str, a_logo: str, scorer: str = "",
-                   comp_code: str = "PL") -> FlexDict:
-    sub_text = f"Goal by {scorer} disallowed after review" if scorer else "Goal disallowed after review"
+                   minute: object = None, comp_code: str = "PL") -> FlexDict:
+    min_text = format_minute(minute)
+    if scorer and min_text:
+        sub_text = f"Goal by {scorer} disallowed after review ({min_text})"
+    elif scorer:
+        sub_text = f"Goal by {scorer} disallowed after review"
+    else:
+        sub_text = "Goal disallowed after review"
     
     # Theme configuration
     if comp_code == WC_CODE:
@@ -144,7 +152,7 @@ def make_group_box(group_data) -> dict:
         logo   = t.get("team", {}).get("crest", "")
         
         gd_text  = f"+{gd}" if gd > 0 else str(gd)
-        is_fav   = any(f.lower() in name.lower() for f in WATCHED_COUNTRIES)
+        is_fav   = is_exact_team_match(name, WATCHED_COUNTRIES)
         bg_color = "#F0F9FF" if is_fav else "#FFFFFF"
         
         rows.append({
@@ -239,7 +247,7 @@ def build_standings_flex(standings_groups) -> FlexDict:
         logo   = t.get("team", {}).get("crest", "")
 
         gd_text  = f"+{gd}" if gd > 0 else str(gd)
-        is_fav   = any(f.lower() in name.lower() for f in WATCHED_TEAMS)
+        is_fav   = is_exact_team_match(name, WATCHED_TEAMS)
         bg_color = "#F0F9FF" if is_fav else "#FFFFFF"
 
         rows.append({
@@ -284,18 +292,6 @@ def build_standings_flex(standings_groups) -> FlexDict:
     }
 
 def build_upcoming_flex(matches) -> FlexDict:
-    STAGE_TRANSLATION = {
-        "GROUP_STAGE": "รอบแบ่งกลุ่ม",
-        "LAST_32": "รอบ 32 ทีมสุดท้าย",
-        "ROUND_OF_32": "รอบ 32 ทีมสุดท้าย",
-        "LAST_16": "รอบ 16 ทีมสุดท้าย",
-        "ROUND_OF_16": "รอบ 16 ทีมสุดท้าย",
-        "QUARTER_FINALS": "รอบ 8 ทีมสุดท้าย",
-        "SEMI_FINALS": "รอบรองชนะเลิศ",
-        "THIRD_PLACE": "รอบชิงอันดับ 3",
-        "FINAL": "รอบชิงชนะเลิศ"
-    }
-
     rows = []
     for m in matches[:10]:
         home = m["homeTeam"]["name"]
@@ -443,6 +439,22 @@ def build_countdown_flex(days_left: int) -> FlexDict:
                             "align": "center"
                         }
                     ]
+                }
+            ]
+        },
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": "#7F0F25",
+            "paddingAll": "md",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": f"🏆 อีก {days_left} วัน สู่ FIFA WORLD CUP 2026!",
+                    "color": "#D4AF37",
+                    "align": "center",
+                    "weight": "bold",
+                    "size": "sm"
                 }
             ]
         }

@@ -4,6 +4,7 @@ from app.config import Config
 from app.services.football_service import svc
 from app.flex.flex_builders import build_standings_flex, build_upcoming_flex, build_scorers_flex
 from app.utils.constants import ACTIVE_COMPETITION, WC_CODE
+from app.utils.helpers import format_minute, first_not_none
 
 HELP_TEXT = (
     "⚽ สวัสดี! FootballBot ยินดีให้บริการ\n\n"
@@ -28,10 +29,14 @@ def build_live_scores() -> str:
     for m in matches:
         home   = m["homeTeam"]["name"]
         away   = m["awayTeam"]["name"]
-        hs     = m.get("score", {}).get("fullTime", {}).get("home") or m.get("score", {}).get("halfTime", {}).get("home") or 0
-        as_    = m.get("score", {}).get("fullTime", {}).get("away") or m.get("score", {}).get("halfTime", {}).get("away") or 0
-        minute = m.get("minute", m.get("status", "LIVE"))
-        lines.append(f"▶️ {home} {hs} - {as_} {away} ({minute}')")
+        hs     = first_not_none(m.get("score", {}).get("fullTime", {}).get("home"), m.get("score", {}).get("halfTime", {}).get("home"), 0)
+        as_    = first_not_none(m.get("score", {}).get("fullTime", {}).get("away"), m.get("score", {}).get("halfTime", {}).get("away"), 0)
+        minute = m.get("minute")
+        if minute is not None:
+            label = format_minute(minute)
+        else:
+            label = m.get("status", "LIVE")
+        lines.append(f"▶️ {home} {hs} - {as_} {away} ({label})")
     return "\n".join(lines)
 
 def build_recent_results() -> str:
@@ -47,8 +52,9 @@ def build_recent_results() -> str:
     for m in recent_matches:
         home = m["homeTeam"]["name"]
         away = m["awayTeam"]["name"]
-        hs   = m.get("score", {}).get("fullTime", {}).get("home", "?")
-        as_  = m.get("score", {}).get("fullTime", {}).get("away", "?")
+        score = m.get("score", {})
+        hs   = first_not_none(score.get("fullTime", {}).get("home"), score.get("halfTime", {}).get("home"), "?")
+        as_  = first_not_none(score.get("fullTime", {}).get("away"), score.get("halfTime", {}).get("away"), "?")
         lines.append(f"✅ {home} {hs} - {as_} {away}")
     return "\n".join(lines)
 
@@ -64,6 +70,7 @@ def build_upcoming() -> Any:
     if not isinstance(data, dict): return "📭 ตอนนี้ไม่มีโปรแกรมการแข่งขัน"
     matches = data.get("matches", [])
     if not matches: return "📭 ตอนนี้ไม่มีโปรแกรมการแข่งขัน"
+    matches.sort(key=lambda m: m.get("utcDate", ""))
     return build_upcoming_flex(matches)
 
 def build_scorers() -> Any:

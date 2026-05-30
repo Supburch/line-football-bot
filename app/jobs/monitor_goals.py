@@ -3,9 +3,9 @@ from app.config import Config
 from app.services.football_service import svc
 from app.services.line_service import broadcast, BroadcastResult
 from app.repositories.supabase_client import get_sent_event, commit_match_state
-from app.utils.helpers import is_watched_match
+from app.utils.helpers import is_watched_match, first_not_none
 from app.flex.flex_builders import build_goal_flex, build_var_flex
-from app.utils.constants import EPL_CODE, WC_CODE, ACTIVE_COMPETITION
+from app.utils.constants import EPL_CODE, WC_CODE, ACTIVE_COMPETITION, CLEANUP_MATCH_STATUSES
 from app.utils.logger import logger
 from app.services.match_state_manager import MatchStateManager
 
@@ -31,10 +31,10 @@ def detect_score_transition(fid: str, hs: int, as_: int):
 def should_ignore_rollback(goal_diff: int, status: str, fid: str) -> bool:
     """Edge Case 1 & 2: Ignore rollback if diff > 1 or match is not active."""
     if goal_diff > 1:
-        logger.warning({"event": "suspicious_rollback_ignored", "match_id": fid, "diff": goal_diff})
+        logger.warning("suspicious_rollback_ignored", extra={"match_id": fid, "diff": goal_diff})
         return True
     if status not in {"IN_PLAY", "PAUSED"}:
-        logger.warning({"event": "var_ignored_invalid_status", "match_id": fid, "status": status})
+        logger.warning("var_ignored_invalid_status", extra={"match_id": fid, "status": status})
         return True
     return False
 
@@ -59,8 +59,8 @@ def monitor_goals(live_matches: list = None):
             status = m.get("status", "")
             fid = str(m.get("id", ""))
             
-            # Edge Case 3: Memory Cleanup for finished matches
-            if status in {"FINISHED", "POSTPONED", "CANCELLED"}:
+            # Edge Case 3: Memory Cleanup for finished and irregular matches
+            if status in CLEANUP_MATCH_STATUSES:
                 state_manager.cleanup_match(fid)
                 continue
                 
@@ -68,8 +68,8 @@ def monitor_goals(live_matches: list = None):
                 continue
 
             score = m.get("score", {})
-            hs = score.get("fullTime", {}).get("home") or score.get("halfTime", {}).get("home") or 0
-            as_ = score.get("fullTime", {}).get("away") or score.get("halfTime", {}).get("away") or 0
+            hs = first_not_none(score.get("fullTime", {}).get("home"), score.get("halfTime", {}).get("home"), 0)
+            as_ = first_not_none(score.get("fullTime", {}).get("away"), score.get("halfTime", {}).get("away"), 0)
             
             try:
                 hs = int(hs)
@@ -107,7 +107,7 @@ def monitor_goals(live_matches: list = None):
                 confirmed_prev = state_manager.check_pending_var(fid, (hs, as_))
                 if not confirmed_prev:
                     # First time seeing this drop. Debounce it.
-                    logger.info({"event": "var_debounce", "match_id": fid, "score": f"{hs}-{as_}"})
+                    logger.info("var_debounce", extra={"match_id": fid, "score": f"{hs}-{as_}"})
                     state_manager.set_pending_var(fid, prev_score, (hs, as_))
                     continue
                 else:
@@ -134,7 +134,7 @@ def monitor_goals(live_matches: list = None):
             if is_var:
                 scorer = state_manager.get_last_scorer(fid)
                 flex_msg = build_var_flex(home_name, away_name, hs, as_, h_logo, a_logo, scorer, comp_code=comp_code)
-                logger.info({"event": "var_detected", "match_id": fid, "event_key": event_key, "scorer_lost": scorer, "competition": comp_code})
+                logger.info("var_detected", extra={"match_id": fid, "event_key": event_key, "scorer_lost": scorer, "competition": comp_code})
             else:
                 goals = m.get("goals", [])
                 scorer = ""
@@ -144,7 +144,7 @@ def monitor_goals(live_matches: list = None):
                     scorer = (last_g.get("scorer") or {}).get("name", "")
                     minute_s = str(last_g.get("minute", ""))
                 flex_msg = build_goal_flex(home_name, away_name, hs, as_, h_logo, a_logo, scorer, minute_s, comp_code=comp_code)
-                logger.info({"event": "goal_detected", "match_id": fid, "score": f"{hs}-{as_}", "scorer": scorer, "event_key": event_key, "competition": comp_code})
+                logger.info("goal_detected", extra={"match_id": fid, "score": f"{hs}-{as_}", "scorer": scorer, "event_key": event_key, "competition": comp_code})
 
             # BROADCAST FIRST
             result = broadcast(flex_msg)
@@ -157,17 +157,17 @@ def monitor_goals(live_matches: list = None):
                     # Commit to memory only if DB commit succeeded (or if no DB)
                     state_manager.commit_memory(fid, hs, as_, scorer if is_goal else "")
                     state_manager.clear_event_failure(event_key)
-                    logger.info({"event": "state_committed", "match_id": fid, "event_key": event_key})
+                    logger.info("state_committed", extra={"match_id": fid, "event_key": event_key})
                 else:
                     # DB failed, retryable
                     state_manager.register_event_failure(event_key, is_fatal=False)
                     
             elif result == BroadcastResult.RETRYABLE_FAIL:
-                logger.warning({"event": "broadcast_retryable_fail", "match_id": fid})
+                logger.warning("broadcast_retryable_fail", extra={"match_id": fid})
                 state_manager.register_event_failure(event_key, is_fatal=False)
             else:
-                logger.error({"event": "broadcast_fatal_fail", "match_id": fid})
+                logger.error("broadcast_fatal_fail", extra={"match_id": fid})
                 state_manager.register_event_failure(event_key, is_fatal=True)
 
     except Exception as e:
-        logger.error({"event": "monitor_goals_exception", "error": str(e)})
+        logger.error("monitor_goals_exception", extra={"error": str(e)})

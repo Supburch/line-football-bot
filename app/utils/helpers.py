@@ -22,9 +22,31 @@ def safe_group_id(source) -> str:
             return val
     return ""
 
+def is_exact_team_match(name: str, targets: list[str]) -> bool:
+    normalized = str(name).strip().lower()
+    return any(
+        normalized == str(target).strip().lower()
+        for target in targets
+    )
+
 def is_watched_match(home: str, away: str, comp_code: Optional[str] = None) -> bool:
     target_list = WATCHED_COUNTRIES if comp_code == WC_CODE else WATCHED_TEAMS
-    return any(
-        t.lower() in str(home).lower() or t.lower() in str(away).lower()
-        for t in target_list
-    )
+    return is_exact_team_match(home, target_list) or is_exact_team_match(away, target_list)
+
+def format_minute(minute: object) -> str:
+    if minute is None:
+        return ""
+    minute_str = str(minute).strip()
+    if not minute_str:
+        return ""
+    if minute_str.endswith("'"):
+        return minute_str
+    return f"{minute_str}'"
+
+from typing import Any
+
+def first_not_none(*values: Any) -> Any:
+    for value in values:
+        if value is not None:
+            return value
+    return None
