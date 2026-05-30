@@ -249,7 +249,7 @@ def build_countdown_flex(days_left: int) -> FlexDict:
                     "type": "box",
                     "layout": "vertical",
                     "position": "absolute",
-                    "offsetBottom": "43px",
+                    "offsetBottom": "22px",
                     "offsetStart": "15%",
                     "offsetEnd": "40%",
                     "alignItems": "center",
@@ -258,7 +258,7 @@ def build_countdown_flex(days_left: int) -> FlexDict:
                         {
                             "type": "text",
                             "text": f"{days_left}",
-                            "size": "5xl",
+                            "size": "3xl",
                             "color": "#000000",
                             "weight": "bold",
                             "align": "center"
