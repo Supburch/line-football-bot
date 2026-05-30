@@ -2,8 +2,8 @@ from typing import Any
 from datetime import datetime
 from app.config import Config
 from app.services.football_service import svc
-from app.flex.flex_builders import build_standings_flex, build_upcoming_flex, build_countdown_flex
-from app.utils.constants import ACTIVE_COMPETITION, WC_CODE, WORLD_CUP_START
+from app.flex.flex_builders import build_standings_flex, build_upcoming_flex
+from app.utils.constants import ACTIVE_COMPETITION, WC_CODE
 
 HELP_TEXT = (
     "⚽ สวัสดี! FootballBot ยินดีให้บริการ\n\n"
@@ -12,8 +12,7 @@ HELP_TEXT = (
     "⚽ บอตเว้ย ผลบอล\n"
     "🔴 บอตเว้ย สด\n"
     "🏆 บอตเว้ย ตาราง\n"
-    "📅 บอตเว้ย โปรแกรม\n"
-    "⏳ บอตเว้ย นับถอยหลัง\n\n"
+    "📅 บอตเว้ย โปรแกรม\n\n"
     "🔔 แจ้งเตือนประตูอัตโนมัติทีมโปรด"
 )
 
@@ -66,26 +65,11 @@ def build_upcoming() -> Any:
     if not matches: return "📭 ตอนนี้ไม่มีโปรแกรมการแข่งขัน"
     return build_upcoming_flex(matches)
 
-def build_countdown() -> Any:
-    try:
-        start_date = datetime.strptime(WORLD_CUP_START, "%Y-%m-%d").date()
-        today = datetime.now(Config.TZ).date()
-        delta = (start_date - today).days
-        if delta > 0:
-            return build_countdown_flex(delta)
-        elif delta == 0:
-            return "🏆 มหกรรมฟุตบอลโลก FIFA WORLD CUP เปิดฉากขึ้นอย่างเป็นทางการแล้ววันนี้! 🎉"
-        else:
-            return "🏆 เทศกาลฟุตบอลโลก FIFA WORLD CUP ได้เริ่มต้นขึ้นแล้ว!"
-    except Exception as e:
-        return f"❌ เกิดข้อผิดพลาดในการคำนวณ: {e}"
-
 COMMAND_MAP = [
     (("สด", "live"), build_live_scores),
     (("ตาราง", "table", "standing"), build_standings),
     (("ผล", "ผลบอล", "result"), build_recent_results),
     (("โปรแกรม", "fixture", "นัดถัดไป"), build_upcoming),
-    (("นับถอยหลัง", "countdown"), build_countdown),
 ]
 
 def handle_command(cmd_text: str) -> Any:
