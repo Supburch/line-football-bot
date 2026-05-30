@@ -52,7 +52,8 @@ def run_smart_schedule(scheduler):
         if is_high_speed_allowed:
             if SchedulerState.CURRENT_POLL_MODE != "high_speed":
                 SchedulerState.CURRENT_POLL_MODE = "high_speed"
-                scheduler.reschedule_job("goal_monitor", trigger="interval", seconds=30)
+                # Safe High-speed polling: 45 seconds (1.33 requests/min), far below the 10 requests/min rate limit!
+                scheduler.reschedule_job("goal_monitor", trigger="interval", seconds=45)
         else:
             if SchedulerState.CURRENT_POLL_MODE != "fast":
                 SchedulerState.CURRENT_POLL_MODE = "fast"
