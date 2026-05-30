@@ -44,10 +44,19 @@ def run_smart_schedule(scheduler):
         except Exception:
             pass
 
+    bkk_now = datetime.now(Config.TZ)
+    new_month_start = Config.TZ.localize(datetime(2026, 6, 1, 0, 0, 0))
+    is_high_speed_allowed = bkk_now < new_month_start
+
     if in_window:
-        if SchedulerState.CURRENT_POLL_MODE != "fast":
-            SchedulerState.CURRENT_POLL_MODE = "fast"
-            scheduler.reschedule_job("goal_monitor", trigger="interval", minutes=_jitter(3, 2))
+        if is_high_speed_allowed:
+            if SchedulerState.CURRENT_POLL_MODE != "high_speed":
+                SchedulerState.CURRENT_POLL_MODE = "high_speed"
+                scheduler.reschedule_job("goal_monitor", trigger="interval", seconds=30)
+        else:
+            if SchedulerState.CURRENT_POLL_MODE != "fast":
+                SchedulerState.CURRENT_POLL_MODE = "fast"
+                scheduler.reschedule_job("goal_monitor", trigger="interval", minutes=_jitter(3, 2))
         monitor_goals(live_matches=live_matches if live_matches else None)
     else:
         if SchedulerState.CURRENT_POLL_MODE != "slow":
