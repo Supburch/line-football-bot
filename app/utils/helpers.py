@@ -20,11 +20,11 @@ def safe_url(url: Optional[str], team_name: Optional[str] = None) -> str:
     
     # 2. Check by URL contents if team name didn't match or wasn't provided
     url_lower = url.lower()
-    if "scotland" in url_lower or "/759.svg" in url_lower:
+    if "scotland" in url_lower or "/2000.svg" in url_lower or "/2000.png" in url_lower:
         return "https://flagcdn.com/w160/gb-sct.png"
-    elif "england" in url_lower or "/770.svg" in url_lower:
+    elif "england" in url_lower or "/2072.svg" in url_lower or "/2072.png" in url_lower:
         return "https://flagcdn.com/w160/gb-eng.png"
-    elif "wales" in url_lower or "/767.svg" in url_lower:
+    elif "wales" in url_lower or "/2264.svg" in url_lower or "/2264.png" in url_lower:
         return "https://flagcdn.com/w160/gb-wls.png"
 
     if url.startswith("http://"):
