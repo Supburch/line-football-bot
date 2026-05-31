@@ -52,11 +52,11 @@ def build_goal_flex(h_name: str, a_name: str, hs: int, as_: int,
                 {
                     "type": "box", "layout": "horizontal", "margin": "lg", "alignItems": "center",
                     "contents": [
-                        {"type": "image", "url": safe_url(h_logo), "size": "sm", "flex": 2},
+                        {"type": "image", "url": safe_url(h_logo, h_name), "size": "sm", "flex": 2},
                         {"type": "text", "text": str(hs), "size": "xxl", "weight": "bold", "align": "center", "flex": 1},
                         {"type": "text", "text": "-", "size": "xxl", "weight": "bold", "align": "center", "flex": 0},
                         {"type": "text", "text": str(as_), "size": "xxl", "weight": "bold", "align": "center", "flex": 1},
-                        {"type": "image", "url": safe_url(a_logo), "size": "sm", "flex": 2},
+                        {"type": "image", "url": safe_url(a_logo, a_name), "size": "sm", "flex": 2},
                     ]
                 },
                 {"type": "text", "text": f"{h_name}  vs  {a_name}",
@@ -116,11 +116,11 @@ def build_var_flex(h_name: str, a_name: str, hs: int, as_: int, h_logo: str, a_l
                 {
                     "type": "box", "layout": "horizontal", "margin": "lg", "alignItems": "center",
                     "contents": [
-                        {"type": "image", "url": safe_url(h_logo), "size": "sm", "flex": 2},
+                        {"type": "image", "url": safe_url(h_logo, h_name), "size": "sm", "flex": 2},
                         {"type": "text", "text": str(hs), "size": "xxl", "weight": "bold", "align": "center", "flex": 1},
                         {"type": "text", "text": "-", "size": "xxl", "weight": "bold", "align": "center", "flex": 0},
                         {"type": "text", "text": str(as_), "size": "xxl", "weight": "bold", "align": "center", "flex": 1},
-                        {"type": "image", "url": safe_url(a_logo), "size": "sm", "flex": 2},
+                        {"type": "image", "url": safe_url(a_logo, a_name), "size": "sm", "flex": 2},
                     ]
                 },
                 {"type": "text", "text": f"{h_name}  vs  {a_name}",
@@ -170,7 +170,7 @@ def build_penalty_shootout_flex(h_name: str, a_name: str, hs: int, as_: int,
                 {
                     "type": "box", "layout": "horizontal", "margin": "lg", "alignItems": "center",
                     "contents": [
-                        {"type": "image", "url": safe_url(h_logo), "size": "sm", "flex": 2},
+                        {"type": "image", "url": safe_url(h_logo, h_name), "size": "sm", "flex": 2},
                         {
                             "type": "box", "layout": "vertical", "flex": 3, "alignItems": "center",
                             "contents": [
@@ -178,7 +178,7 @@ def build_penalty_shootout_flex(h_name: str, a_name: str, hs: int, as_: int,
                                 {"type": "text", "text": f"PSO: {pen_hs} - {pen_as}", "size": "sm", "weight": "bold", "color": "#888888", "margin": "xs"}
                             ]
                         },
-                        {"type": "image", "url": safe_url(a_logo), "size": "sm", "flex": 2},
+                        {"type": "image", "url": safe_url(a_logo, a_name), "size": "sm", "flex": 2},
                     ]
                 },
                 {"type": "text", "text": f"{h_name}  vs  {a_name}",
@@ -235,7 +235,7 @@ def make_group_box(group_data) -> dict:
                 {
                     "type": "box", "layout": "horizontal", "flex": 4, "alignItems": "center",
                     "contents": [
-                        {"type": "image", "url": safe_url(logo), "size": "xxs", "flex": 0},
+                        {"type": "image", "url": safe_url(logo, name), "size": "xxs", "flex": 0},
                         {"type": "text", "text": name, "size": "xs", "margin": "sm", "flex": 1,
                          "weight": "bold" if is_fav else "regular", "wrap": True},
                     ]
@@ -330,7 +330,7 @@ def build_standings_flex(standings_groups) -> FlexDict:
                 {
                     "type": "box", "layout": "horizontal", "flex": 4, "alignItems": "center",
                     "contents": [
-                        {"type": "image", "url": safe_url(logo), "size": "xxs", "flex": 0},
+                        {"type": "image", "url": safe_url(logo, name), "size": "xxs", "flex": 0},
                         {"type": "text", "text": name, "size": "xs", "margin": "sm", "flex": 1,
                          "weight": "bold" if is_fav else "regular", "wrap": True},
                     ]
@@ -397,11 +397,11 @@ def build_upcoming_flex(matches) -> FlexDict:
                 {
                     "type": "box", "layout": "horizontal", "margin": "sm", "alignItems": "center",
                     "contents": [
-                        {"type": "image", "url": safe_url(h_logo), "size": "xxs", "flex": 0},
+                        {"type": "image", "url": safe_url(h_logo, home), "size": "xxs", "flex": 0},
                         {"type": "text", "text": home, "size": "sm", "flex": 3, "margin": "sm"},
                         {"type": "text", "text": "vs", "size": "sm", "flex": 1, "align": "center", "color": "#888888"},
                         {"type": "text", "text": away, "size": "sm", "flex": 3, "align": "end", "margin": "sm"},
-                        {"type": "image", "url": safe_url(a_logo), "size": "xxs", "flex": 0},
+                        {"type": "image", "url": safe_url(a_logo, away), "size": "xxs", "flex": 0},
                     ]
                 },
                 {"type": "separator", "margin": "md"},
@@ -460,7 +460,7 @@ def build_scorers_flex(scorers) -> FlexDict:
                 {
                     "type": "box", "layout": "horizontal", "flex": 3, "alignItems": "center",
                     "contents": [
-                        {"type": "image", "url": safe_url(team_logo), "size": "xxs", "flex": 0},
+                        {"type": "image", "url": safe_url(team_logo, team_name), "size": "xxs", "flex": 0},
                         {"type": "text", "text": team_name, "size": "xs", "margin": "sm", "flex": 1, "wrap": True}
                     ]
                 },

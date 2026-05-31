@@ -2,14 +2,40 @@ import re
 from typing import Optional
 from app.utils.constants import DEFAULT_LOGO, BOT_PREFIX, WATCHED_TEAMS, WATCHED_COUNTRIES, WC_CODE
 
-def safe_url(url: Optional[str]) -> str:
+def safe_url(url: Optional[str], team_name: Optional[str] = None) -> str:
+    # 1. Check by team name mapping first (extremely robust fallback for UK countries & common issues)
+    if team_name and isinstance(team_name, str):
+        team_name_lower = team_name.strip().lower()
+        if "scotland" in team_name_lower:
+            return "https://flagcdn.com/w160/gb-sct.png"
+        elif "england" in team_name_lower:
+            return "https://flagcdn.com/w160/gb-eng.png"
+        elif "wales" in team_name_lower:
+            return "https://flagcdn.com/w160/gb-wls.png"
+
     if not url or not isinstance(url, str):
         return DEFAULT_LOGO
+    
     url = url.strip()
+    
+    # 2. Check by URL contents if team name didn't match or wasn't provided
+    url_lower = url.lower()
+    if "scotland" in url_lower or "/759.svg" in url_lower:
+        return "https://flagcdn.com/w160/gb-sct.png"
+    elif "england" in url_lower or "/770.svg" in url_lower:
+        return "https://flagcdn.com/w160/gb-eng.png"
+    elif "wales" in url_lower or "/767.svg" in url_lower:
+        return "https://flagcdn.com/w160/gb-wls.png"
+
     if url.startswith("http://"):
         url = "https://" + url[len("http://"):]
     if not url.startswith("https://"):
         return DEFAULT_LOGO
+
+    # 3. Convert all other SVG flags to PNG using weserv.nl since LINE doesn't support SVG
+    if ".svg" in url_lower:
+        return f"https://images.weserv.nl/?url={url}&format=png"
+
     return url
 
 def extract_command(text: str) -> str:
