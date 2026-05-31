@@ -278,3 +278,7 @@ def monitor_goals(live_matches: list = None):
 
     except Exception as e:
         logger.error("monitor_goals_exception", extra={"error": str(e)})
+
+def log_state_manager_health():
+    """Forces state manager health logging at fixed interval."""
+    state_manager.log_health_report(force=True)

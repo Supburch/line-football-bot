@@ -32,6 +32,9 @@ class MatchStateManager:
         # Throttling timestamp for health reporting (once every 30 minutes)
         self._last_health_reported_at: float = 0.0
 
+        # Start time of the process to track uptime
+        self._start_time: float = time.time()
+
     def get_score(self, fid: str) -> Optional[Tuple[int, int]]:
         with self._lock:
             score = self._last_sent_scores.get(fid)
@@ -222,6 +225,7 @@ class MatchStateManager:
             failed_count = len(self._failed_events)
             inflight_count = len(self._in_flight)
             pending_var_count = len(self._pending_var)
+            uptime_hours = round((now - self._start_time) / 3600.0, 2)
             
             # 1. Log Info Health Snapshot
             logger.info({
@@ -229,7 +233,8 @@ class MatchStateManager:
                 "active_matches": active_count,
                 "failed_events": failed_count,
                 "in_flight": inflight_count,
-                "pending_var": pending_var_count
+                "pending_var": pending_var_count,
+                "uptime_hours": uptime_hours
             })
             
             # 2. Check and log Alert Warnings

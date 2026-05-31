@@ -1,7 +1,7 @@
 import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.services.line_service import broadcast_executor
-from app.jobs.monitor_goals import monitor_goals
+from app.jobs.monitor_goals import monitor_goals, log_state_manager_health
 from app.jobs.smart_schedule import run_smart_schedule, _jitter
 from app.jobs.weekly_summary import check_weekly_summary
 from app.jobs.cleanup import run_cleanup
@@ -18,6 +18,9 @@ def start_scheduler():
     scheduler.add_job(check_weekly_summary, "cron", hour=23, minute=0, id="weekly_summary", max_instances=1, replace_existing=True)
     scheduler.add_job(run_cleanup, "interval", minutes=60, id="cleanup_sent_events", max_instances=1, coalesce=True, replace_existing=True)
     scheduler.add_job(check_world_cup_countdown, "cron", hour=8, minute=0, id="wc_countdown", max_instances=1, replace_existing=True)
+    
+    # Observability: Fixed 30-minute health report cron job
+    scheduler.add_job(log_state_manager_health, "cron", minute="0,30", id="state_manager_health", max_instances=1, coalesce=True, replace_existing=True)
 
     scheduler.start()
     
