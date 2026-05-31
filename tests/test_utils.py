@@ -25,10 +25,11 @@ def test_safe_url():
     assert safe_url("https://crests.thefootball-data.org/2163.svg") == "https://flagcdn.com/w160/gb-nir.png"
     
     # Test SVG conversion via images.weserv.nl with URL encoding (':' becomes '%3A', '/' remains '/')
-    assert safe_url("https://example.com/logo.svg") == "https://images.weserv.nl/?url=https%3A//example.com/logo.svg&format=png"
+    assert safe_url("https://example.com/logo.svg") == "https://images.weserv.nl/?url=https://example.com/logo.svg&format=png"
     
     # Test collision prevention (Germany team ID 759 should NOT map to Scotland)
-    assert safe_url("https://crests.thefootball-data.org/759.svg") == "https://images.weserv.nl/?url=https%3A//crests.thefootball-data.org/759.svg&format=png"
-    assert safe_url("https://crests.thefootball-data.org/759.svg", "Germany") == "https://images.weserv.nl/?url=https%3A//crests.thefootball-data.org/759.svg&format=png"
+    assert safe_url("https://crests.thefootball-data.org/759.svg") == "https://images.weserv.nl/?url=https://crests.thefootball-data.org/759.svg&format=png"
+    assert safe_url("https://crests.thefootball-data.org/759.svg", "Germany") == "https://images.weserv.nl/?url=https://crests.thefootball-data.org/759.svg&format=png"
+
 
 
