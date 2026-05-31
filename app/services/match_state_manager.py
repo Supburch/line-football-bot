@@ -29,6 +29,9 @@ class MatchStateManager:
         # fid -> timestamp (to track match activity for TTL eviction)
         self._last_updated_at: Dict[str, float] = {}
 
+        # Throttling timestamp for health reporting (once every 30 minutes)
+        self._last_health_reported_at: float = 0.0
+
     def get_score(self, fid: str) -> Optional[Tuple[int, int]]:
         with self._lock:
             score = self._last_sent_scores.get(fid)
@@ -203,3 +206,54 @@ class MatchStateManager:
             for event_key in expired_events:
                 self._failed_events.pop(event_key, None)
                 logger.info({"event": "failed_event_evicted_ttl", "event_key": event_key})
+
+    def log_health_report(self, force: bool = False):
+        """
+        Logs a comprehensive health snapshot of state variables every 30 minutes (or if forced).
+        Fires high-priority warnings if state metrics exceed safety thresholds.
+        """
+        with self._lock:
+            now = time.time()
+            if not force and (now - self._last_health_reported_at < 1800):
+                return
+            self._last_health_reported_at = now
+            
+            active_count = len(self._last_updated_at)
+            failed_count = len(self._failed_events)
+            inflight_count = len(self._in_flight)
+            pending_var_count = len(self._pending_var)
+            
+            # 1. Log Info Health Snapshot
+            logger.info({
+                "event": "state_manager_health",
+                "active_matches": active_count,
+                "failed_events": failed_count,
+                "in_flight": inflight_count,
+                "pending_var": pending_var_count
+            })
+            
+            # 2. Check and log Alert Warnings
+            if active_count > 30:
+                logger.warning({
+                    "event": "active_matches_high",
+                    "count": active_count,
+                    "threshold": 30
+                })
+            if failed_count > 50:
+                logger.warning({
+                    "event": "failed_events_high",
+                    "count": failed_count,
+                    "threshold": 50
+                })
+            if inflight_count > 50:
+                logger.warning({
+                    "event": "in_flight_high",
+                    "count": inflight_count,
+                    "threshold": 50
+                })
+            if pending_var_count > 20:
+                logger.warning({
+                    "event": "pending_var_high",
+                    "count": pending_var_count,
+                    "threshold": 20
+                })
