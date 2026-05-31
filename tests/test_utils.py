@@ -30,6 +30,30 @@ def test_safe_url():
     # Test collision prevention (Germany team ID 759 should NOT map to Scotland)
     assert safe_url("https://crests.thefootball-data.org/759.svg") == "https://images.weserv.nl/?url=https://crests.thefootball-data.org/759.svg&format=png"
     assert safe_url("https://crests.thefootball-data.org/759.svg", "Germany") == "https://images.weserv.nl/?url=https://crests.thefootball-data.org/759.svg&format=png"
-
-
-
+def test_match_state_manager_ttl():
+    import time
+    from app.services.match_state_manager import MatchStateManager
+    
+    mgr = MatchStateManager()
+    
+    # 1. Add some active state
+    mgr.commit_memory("match1", 1, 0, scorer="Salah", minute="45")
+    mgr.register_event_failure("event1", is_fatal=False)
+    
+    # Verify they exist
+    assert mgr.get_score("match1") == (1, 0)
+    assert mgr.can_retry_event("event1") is False  # Because it just failed and has backoff
+    
+    # 2. Run cleanup with a very long threshold (e.g. 10 seconds). Nothing should be evicted.
+    mgr.cleanup_expired_states(max_age_seconds=10.0)
+    assert mgr.get_score("match1") == (1, 0)
+    assert "event1" in mgr._failed_events
+    
+    # 3. Sleep a bit and run cleanup with 0.01 threshold
+    time.sleep(0.05)
+    mgr.cleanup_expired_states(max_age_seconds=0.01)
+    
+    # Verify everything got evicted/purged!
+    assert mgr.get_score("match1") is None
+    assert mgr.get_last_scorer("match1") == ""
+    assert "event1" not in mgr._failed_events

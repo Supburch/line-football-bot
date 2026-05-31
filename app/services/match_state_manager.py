@@ -20,19 +20,26 @@ class MatchStateManager:
         # fid -> {"prev": (1,1), "new": (0,1), "ts": timestamp}
         self._pending_var: Dict[str, Dict] = {}
         
-        # event_key -> {"retry_count": 0, "next_retry_at": timestamp}
+        # event_key -> {"retry_count": 0, "next_retry_at": timestamp, "created_at": timestamp}
         self._failed_events: Dict[str, Dict] = {}
         
         # In-flight set: event_keys currently being broadcast (duplicate guard across restarts)
         self._in_flight: set = set()
 
+        # fid -> timestamp (to track match activity for TTL eviction)
+        self._last_updated_at: Dict[str, float] = {}
+
     def get_score(self, fid: str) -> Optional[Tuple[int, int]]:
         with self._lock:
-            return self._last_sent_scores.get(fid)
+            score = self._last_sent_scores.get(fid)
+            if score is not None:
+                self._last_updated_at[fid] = time.time()
+            return score
 
     def commit_memory(self, fid: str, hs: int, as_: int, scorer: str = "", minute: str = ""):
         with self._lock:
             self._last_sent_scores[fid] = (hs, as_)
+            self._last_updated_at[fid] = time.time()
             if scorer:
                 self._last_goal_info[fid] = {
                     "score": (hs, as_),
@@ -45,6 +52,7 @@ class MatchStateManager:
 
     def set_pending_var(self, fid: str, prev_score: Tuple[int, int], new_score: Tuple[int, int]):
         with self._lock:
+            self._last_updated_at[fid] = time.time()
             self._pending_var[fid] = {
                 "prev": prev_score,
                 "new": new_score,
@@ -108,11 +116,11 @@ class MatchStateManager:
         with self._lock:
             if is_fatal:
                 # Never retry
-                self._failed_events[event_key] = {"retry_count": 999, "next_retry_at": 2e10}
+                self._failed_events[event_key] = {"retry_count": 999, "next_retry_at": 2e10, "created_at": time.time()}
                 return
 
             if event_key not in self._failed_events:
-                self._failed_events[event_key] = {"retry_count": 0, "next_retry_at": 0}
+                self._failed_events[event_key] = {"retry_count": 0, "next_retry_at": 0, "created_at": time.time()}
                 
             state = self._failed_events[event_key]
             state["retry_count"] += 1
@@ -133,4 +141,38 @@ class MatchStateManager:
             if fid in self._last_sent_scores: del self._last_sent_scores[fid]
             if fid in self._last_goal_info: del self._last_goal_info[fid]
             if fid in self._pending_var: del self._pending_var[fid]
+            if fid in self._last_updated_at: del self._last_updated_at[fid]
             logger.info({"event": "match_state_cleaned", "match_id": fid})
+
+    def cleanup_expired_states(self, max_age_seconds: float = 43200):
+        """
+        Automatically purges any match memory or failed events older than max_age_seconds (default 12 hours).
+        Protects the process against long-term memory leaks.
+        """
+        with self._lock:
+            now = time.time()
+            expired_fids = []
+            
+            # Find expired matches (no activity for 12 hours)
+            for fid, last_active in list(self._last_updated_at.items()):
+                if now - last_active > max_age_seconds:
+                    expired_fids.append(fid)
+                    
+            # Purge expired matches
+            for fid in expired_fids:
+                if fid in self._last_sent_scores: del self._last_sent_scores[fid]
+                if fid in self._last_goal_info: del self._last_goal_info[fid]
+                if fid in self._pending_var: del self._pending_var[fid]
+                if fid in self._last_updated_at: del self._last_updated_at[fid]
+                logger.info({"event": "match_state_evicted_ttl", "match_id": fid})
+                
+            # Purge old failed events (older than 12 hours)
+            expired_events = []
+            for event_key, data in list(self._failed_events.items()):
+                created = data.get("created_at", now)
+                if now - created > max_age_seconds:
+                    expired_events.append(event_key)
+                    
+            for event_key in expired_events:
+                del self._failed_events[event_key]
+                logger.info({"event": "failed_event_evicted_ttl", "event_key": event_key})

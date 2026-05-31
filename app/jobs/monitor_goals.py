@@ -40,6 +40,9 @@ def should_ignore_rollback(goal_diff: int, status: str, fid: str) -> bool:
 
 def monitor_goals(live_matches: list = None):
     try:
+        # Run TTL eviction cleanup on every poll to prevent long-term memory bloat
+        state_manager.cleanup_expired_states()
+        
         if live_matches is not None:
             matches = live_matches
         else:
