@@ -111,13 +111,16 @@ class MatchStateManager:
                 return True
             return time.time() >= self._failed_events[event_key]["next_retry_at"]
 
-    def register_event_failure(self, event_key: str, is_fatal: bool = False):
-        """Registers a failure and calculates exponential backoff."""
+    def register_event_failure(self, event_key: str, is_fatal: bool = False) -> bool:
+        """
+        Registers a failure and calculates exponential backoff.
+        Returns True if the event has been finally abandoned (fatal or exceeded MAX_RETRIES = 3),
+        meaning it should be deleted from failed_events and match memory should be force-resynced.
+        """
         with self._lock:
             if is_fatal:
-                # Never retry
-                self._failed_events[event_key] = {"retry_count": 999, "next_retry_at": 2e10, "created_at": time.time()}
-                return
+                self._failed_events.pop(event_key, None)
+                return True
 
             if event_key not in self._failed_events:
                 self._failed_events[event_key] = {"retry_count": 0, "next_retry_at": 0, "created_at": time.time()}
@@ -125,23 +128,47 @@ class MatchStateManager:
             state = self._failed_events[event_key]
             state["retry_count"] += 1
             
-            # Exponential backoff: 1m, 2m, 4m, 8m... max 30m
+            if state["retry_count"] >= 3:  # MAX_RETRIES = 3
+                self._failed_events.pop(event_key, None)
+                logger.warning({"event": "event_abandoned_max_retries", "event_key": event_key})
+                return True
+            
+            # Exponential backoff: 1m, 2m, 4m...
             delay = min(60 * (2 ** (state["retry_count"] - 1)), 1800)
             state["next_retry_at"] = time.time() + delay
             logger.info({"event": "event_backoff", "event_key": event_key, "retry_in": delay})
+            return False
 
     def clear_event_failure(self, event_key: str):
         with self._lock:
-            if event_key in self._failed_events:
-                del self._failed_events[event_key]
+            self._failed_events.pop(event_key, None)
 
     def cleanup_match(self, fid: str):
         """Cleans up memory state when a match finishes to prevent leaks."""
         with self._lock:
-            if fid in self._last_sent_scores: del self._last_sent_scores[fid]
-            if fid in self._last_goal_info: del self._last_goal_info[fid]
-            if fid in self._pending_var: del self._pending_var[fid]
-            if fid in self._last_updated_at: del self._last_updated_at[fid]
+            self._last_sent_scores.pop(fid, None)
+            self._last_goal_info.pop(fid, None)
+            self._pending_var.pop(fid, None)
+            self._last_updated_at.pop(fid, None)
+            
+            # Strict prefix boundary matching for failed events
+            expired_events = [
+                key
+                for key in self._failed_events.keys()
+                if key.startswith(f"{fid}-") or key.startswith(f"{fid}_")
+            ]
+            for event_key in expired_events:
+                self._failed_events.pop(event_key, None)
+                
+            # Strict prefix boundary matching for in-flight markers
+            expired_in_flight = [
+                key
+                for key in self._in_flight
+                if key.startswith(f"{fid}-") or key.startswith(f"{fid}_")
+            ]
+            for event_key in expired_in_flight:
+                self._in_flight.discard(event_key)
+                
             logger.info({"event": "match_state_cleaned", "match_id": fid})
 
     def cleanup_expired_states(self, max_age_seconds: float = 43200):
@@ -160,10 +187,10 @@ class MatchStateManager:
                     
             # Purge expired matches
             for fid in expired_fids:
-                if fid in self._last_sent_scores: del self._last_sent_scores[fid]
-                if fid in self._last_goal_info: del self._last_goal_info[fid]
-                if fid in self._pending_var: del self._pending_var[fid]
-                if fid in self._last_updated_at: del self._last_updated_at[fid]
+                self._last_sent_scores.pop(fid, None)
+                self._last_goal_info.pop(fid, None)
+                self._pending_var.pop(fid, None)
+                self._last_updated_at.pop(fid, None)
                 logger.info({"event": "match_state_evicted_ttl", "match_id": fid})
                 
             # Purge old failed events (older than 12 hours)
@@ -174,5 +201,5 @@ class MatchStateManager:
                     expired_events.append(event_key)
                     
             for event_key in expired_events:
-                del self._failed_events[event_key]
+                self._failed_events.pop(event_key, None)
                 logger.info({"event": "failed_event_evicted_ttl", "event_key": event_key})

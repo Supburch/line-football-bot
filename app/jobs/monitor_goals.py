@@ -149,11 +149,17 @@ def monitor_goals(live_matches: list = None):
                                     state_manager.clear_event_failure(event_key_pen)
                                     logger.info("pso_score_committed", extra={"match_id": pen_fid, "event_key": event_key_pen})
                                 else:
-                                    state_manager.register_event_failure(event_key_pen, is_fatal=False)
+                                    abandoned = state_manager.register_event_failure(event_key_pen, is_fatal=False)
+                                    if abandoned:
+                                        state_manager.commit_memory(pen_fid, pen_hs, pen_as)
                             elif result == BroadcastResult.RETRYABLE_FAIL:
-                                state_manager.register_event_failure(event_key_pen, is_fatal=False)
+                                abandoned = state_manager.register_event_failure(event_key_pen, is_fatal=False)
+                                if abandoned:
+                                    state_manager.commit_memory(pen_fid, pen_hs, pen_as)
                             else:
-                                state_manager.register_event_failure(event_key_pen, is_fatal=True)
+                                abandoned = state_manager.register_event_failure(event_key_pen, is_fatal=True)
+                                if abandoned:
+                                    state_manager.commit_memory(pen_fid, pen_hs, pen_as)
                 # Continue loop to skip regular score transition for this match
                 continue
 
@@ -252,16 +258,22 @@ def monitor_goals(live_matches: list = None):
                 else:
                     # DB failed, retryable
                     state_manager.clear_in_flight(event_key)
-                    state_manager.register_event_failure(event_key, is_fatal=False)
+                    abandoned = state_manager.register_event_failure(event_key, is_fatal=False)
+                    if abandoned:
+                        state_manager.commit_memory(fid, hs, as_)
                     
             elif result == BroadcastResult.RETRYABLE_FAIL:
                 logger.warning("broadcast_retryable_fail", extra={"match_id": fid})
                 state_manager.clear_in_flight(event_key)
-                state_manager.register_event_failure(event_key, is_fatal=False)
+                abandoned = state_manager.register_event_failure(event_key, is_fatal=False)
+                if abandoned:
+                    state_manager.commit_memory(fid, hs, as_)
             else:
                 logger.error("broadcast_fatal_fail", extra={"match_id": fid})
                 state_manager.clear_in_flight(event_key)
-                state_manager.register_event_failure(event_key, is_fatal=True)
+                abandoned = state_manager.register_event_failure(event_key, is_fatal=True)
+                if abandoned:
+                    state_manager.commit_memory(fid, hs, as_)
 
     except Exception as e:
         logger.error("monitor_goals_exception", extra={"error": str(e)})
