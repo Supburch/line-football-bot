@@ -9,9 +9,17 @@ UCL_CODE = "CL"
 class DynamicCompetition:
     def __str__(self) -> str:
         bkk_now = datetime.now(Config.TZ)
-        # Revert automatically after 06:00 AM BKK time on May 31, 2026
-        cutoff = Config.TZ.localize(datetime(2026, 5, 31, 6, 0, 0))
-        return UCL_CODE if bkk_now < cutoff else WC_CODE
+        # 1. Before UCL Final (06:00 AM BKK on May 31, 2026) -> UCL (CL)
+        ucl_cutoff = Config.TZ.localize(datetime(2026, 5, 31, 6, 0, 0))
+        # 2. During World Cup (May 31, 2026 to July 20, 2026) -> World Cup (WC)
+        wc_cutoff = Config.TZ.localize(datetime(2026, 7, 20, 0, 0, 0))
+        
+        if bkk_now < ucl_cutoff:
+            return UCL_CODE
+        elif bkk_now < wc_cutoff:
+            return WC_CODE
+        else:
+            return EPL_CODE  # Revert to EPL (PL) automatically after WC ends!
 
     def __eq__(self, other: object) -> bool:
         return str(self) == str(other)
