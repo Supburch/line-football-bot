@@ -59,6 +59,26 @@ def monitor_goals(live_matches: list = None):
             status = m.get("status", "")
             fid = str(m.get("id", ""))
             
+            # --- NEW: 3.5 Hour Cutoff to prevent Ghost Goals from fluctuating API load balancers ---
+            utc_str = m.get("utcDate", "")
+            if utc_str:
+                try:
+                    from datetime import datetime, timezone
+                    from app.config import Config
+                    dt_utc = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
+                    dt_bkk = dt_utc.astimezone(Config.TZ)
+                    now_bkk = datetime.now(Config.TZ)
+                    diff_seconds = abs((now_bkk - dt_bkk).total_seconds())
+                    
+                    # 12600 seconds = 3.5 hours. No match lasts longer than 3.5 hours.
+                    if diff_seconds > 12600:
+                        logger.warning("stale_match_ignored_by_time", extra={"match_id": fid, "diff_hrs": diff_seconds/3600})
+                        state_manager.cleanup_match(fid)
+                        continue
+                except Exception:
+                    pass
+            # -----------------------------------------------------------------------------------------
+            
             # Edge Case 3: Memory Cleanup for finished and irregular matches
             if status in CLEANUP_MATCH_STATUSES:
                 state_manager.cleanup_match(fid)
