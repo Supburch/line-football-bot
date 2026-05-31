@@ -1,5 +1,6 @@
 import re
 from typing import Optional
+from urllib.parse import quote
 from app.utils.constants import DEFAULT_LOGO, BOT_PREFIX, WATCHED_TEAMS, WATCHED_COUNTRIES, WC_CODE
 
 def safe_url(url: Optional[str], team_name: Optional[str] = None) -> str:
@@ -12,6 +13,8 @@ def safe_url(url: Optional[str], team_name: Optional[str] = None) -> str:
             return "https://flagcdn.com/w160/gb-eng.png"
         elif "wales" in team_name_lower:
             return "https://flagcdn.com/w160/gb-wls.png"
+        elif "northern ireland" in team_name_lower:
+            return "https://flagcdn.com/w160/gb-nir.png"
 
     if not url or not isinstance(url, str):
         return DEFAULT_LOGO
@@ -26,6 +29,8 @@ def safe_url(url: Optional[str], team_name: Optional[str] = None) -> str:
         return "https://flagcdn.com/w160/gb-eng.png"
     elif "wales" in url_lower or "/2264.svg" in url_lower or "/2264.png" in url_lower:
         return "https://flagcdn.com/w160/gb-wls.png"
+    elif "northern ireland" in url_lower or "/2163.svg" in url_lower or "/2163.png" in url_lower:
+        return "https://flagcdn.com/w160/gb-nir.png"
 
     if url.startswith("http://"):
         url = "https://" + url[len("http://"):]
@@ -34,7 +39,7 @@ def safe_url(url: Optional[str], team_name: Optional[str] = None) -> str:
 
     # 3. Convert all other SVG flags to PNG using weserv.nl since LINE doesn't support SVG
     if ".svg" in url_lower:
-        return f"https://images.weserv.nl/?url={url}&format=png"
+        return f"https://images.weserv.nl/?url={quote(url)}&format=png"
 
     return url
 
