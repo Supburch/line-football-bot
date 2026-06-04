@@ -9,7 +9,7 @@ from app.utils.helpers import format_minute, first_not_none
 def build_help_text() -> str:
     if ACTIVE_COMPETITION == WC_CODE:
         comp_name = "(ช่วงฟุตบอลโลก)"
-        notification_info = "ทีมชาติอังกฤษ"
+        notification_info = " 5 ทีมชาติ"
     elif ACTIVE_COMPETITION == UCL_CODE:
         comp_name = "(ช่วงยูฟ่าแชมเปียนส์ลีก)"
         notification_info = "ทีมรักของคุณ (Spurs, Arsenal, Liverpool, Newcastle)"
@@ -26,7 +26,7 @@ def build_help_text() -> str:
         f"🏆 บอตเว้ย ตาราง\n"
         f"📅 บอตเว้ย โปรแกรม\n"
         f"🥾 บอตเว้ย ดาวซัลโว\n\n"
-        f"🔔 บริการแจ้งเตือนประตูอัตโนมัติ{notification_info}"
+        f"🔔 แจ้งเตือนประตูอัตโนมัติ{notification_info}"
     )
 
 def build_live_scores() -> str:

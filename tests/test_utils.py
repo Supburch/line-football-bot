@@ -122,3 +122,18 @@ def test_match_state_manager_max_retries():
     assert mgr.register_event_failure(event_key, is_fatal=False) is True
     assert event_key not in mgr._failed_events  # Popped immediately!
 
+def test_is_watched_match():
+    from app.utils.helpers import is_watched_match
+    from app.utils.constants import WC_CODE
+    
+    # England should be watched
+    assert is_watched_match("England", "Wales", WC_CODE) is True
+    # Brazil, France, Germany, Scotland should be watched
+    assert is_watched_match("Brazil", "Argentina", WC_CODE) is True
+    assert is_watched_match("France", "Italy", WC_CODE) is True
+    assert is_watched_match("Germany", "Spain", WC_CODE) is True
+    assert is_watched_match("Scotland", "Hungary", WC_CODE) is True
+    # Other random team should not be watched
+    assert is_watched_match("Belgium", "Japan", WC_CODE) is False
+
+
