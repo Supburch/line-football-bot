@@ -5,7 +5,7 @@ from app.services.football_service import svc
 from app.services.line_service import broadcast
 from app.repositories.supabase_client import get_sent_event, mark_sent_event
 from app.utils.helpers import is_watched_match
-from app.utils.constants import WATCHED_TEAMS, ACTIVE_COMPETITION
+from app.utils.constants import WATCHED_TEAMS, WATCHED_COUNTRIES, WC_CODE, ACTIVE_COMPETITION
 
 def check_weekly_summary():
     now = datetime.now(timezone.utc)
@@ -20,8 +20,9 @@ def check_weekly_summary():
         return
 
     matches = data.get("matches", [])
+    comp_code = str(ACTIVE_COMPETITION)
     watched = [m for m in matches if is_watched_match(
-        m["homeTeam"]["name"], m["awayTeam"]["name"]
+        m["homeTeam"]["name"], m["awayTeam"]["name"], comp_code=comp_code
     )]
 
     if not watched:
@@ -48,8 +49,9 @@ def check_weekly_summary():
         hs = m.get("score", {}).get("fullTime", {}).get("home", 0) or 0
         as_ = m.get("score", {}).get("fullTime", {}).get("away", 0) or 0
 
-        home_w = any(t.lower() in home.lower() for t in WATCHED_TEAMS)
-        away_w = any(t.lower() in away.lower() for t in WATCHED_TEAMS)
+        target_teams = WATCHED_COUNTRIES if comp_code == WC_CODE else WATCHED_TEAMS
+        home_w = any(t.lower() in home.lower() for t in target_teams)
+        away_w = any(t.lower() in away.lower() for t in target_teams)
 
         if home_w and away_w:
             lines.append(f"⚽ {home} {hs} - {as_} {away}")

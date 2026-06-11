@@ -45,8 +45,8 @@ def run_smart_schedule(scheduler):
             pass
 
     bkk_now = datetime.now(Config.TZ)
-    new_month_start = Config.TZ.localize(datetime(2026, 6, 1, 0, 0, 0))
-    is_high_speed_allowed = bkk_now < new_month_start
+    wc_end_buffer = Config.TZ.localize(datetime(2026, 7, 25, 0, 0, 0))
+    is_high_speed_allowed = bkk_now < wc_end_buffer
 
     if in_window:
         if is_high_speed_allowed:

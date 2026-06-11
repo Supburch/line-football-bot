@@ -66,16 +66,14 @@ def commit_match_state(match_id: str, event_key: str, home_score: int, away_scor
         logger.error({"event": "split_brain_warning", "message": "Failed to save event_key", "event_key": event_key})
         return CommitResult(success=False, event_saved=False, score_saved=False)
 
-    # 2. Update match score
+    # 2. Update match score (atomic upsert to avoid update-miss-then-insert-fail pattern)
     payload = {
         "match_id": match_id,
         "home_score": home_score,
         "away_score": away_score,
         "updated_at": datetime.now(Config.TZ).isoformat(),
     }
-    score_res = execute_with_retry(supabase.table("match_scores").update(payload).eq("match_id", match_id))
-    if not getattr(score_res, "data", None):
-        score_res = execute_with_retry(supabase.table("match_scores").insert(payload))
+    score_res = execute_with_retry(supabase.table("match_scores").upsert(payload))
     
     score_saved = getattr(score_res, "data", None) is not None
     if not score_saved:

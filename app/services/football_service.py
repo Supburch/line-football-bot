@@ -81,9 +81,10 @@ class FootballService:
 
     def fetch(self, endpoint: str, ttl: int = 60) -> Optional[Any]:
         cache_key = endpoint
-        with self.lock:
-            if cache_key in self.cache:
-                return self.cache[cache_key]
+        if ttl > 0:
+            with self.lock:
+                if cache_key in self.cache:
+                    return self.cache[cache_key]
 
         if self._is_blocked():
             logger.info("⏳ Rate-limit block active")

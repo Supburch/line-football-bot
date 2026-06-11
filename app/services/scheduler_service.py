@@ -30,6 +30,12 @@ def start_scheduler():
         logger.info("startup_smart_schedule_success")
     except Exception as e:
         logger.error("startup_smart_schedule_failed", extra={"error": str(e)})
+        # Failsafe: if startup smart schedule fails, set fast polling to avoid 20-min silence
+        try:
+            scheduler.reschedule_job("goal_monitor", trigger="interval", minutes=3)
+            logger.info("startup_failsafe_fast_mode_activated")
+        except Exception:
+            pass
 
     atexit.register(lambda: scheduler.shutdown())
     atexit.register(lambda: broadcast_executor.shutdown(wait=False))

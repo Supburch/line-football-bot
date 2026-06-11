@@ -37,10 +37,7 @@ class MatchStateManager:
 
     def get_score(self, fid: str) -> Optional[Tuple[int, int]]:
         with self._lock:
-            score = self._last_sent_scores.get(fid)
-            if score is not None:
-                self._last_updated_at[fid] = time.time()
-            return score
+            return self._last_sent_scores.get(fid)
 
     def commit_memory(self, fid: str, hs: int, as_: int, scorer: str = "", minute: str = ""):
         with self._lock:

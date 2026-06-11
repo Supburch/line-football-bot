@@ -18,11 +18,17 @@ class JSONFormatter(logging.Formatter):
                 log_record["message"] = record.getMessage()
 
         # Add any extra arguments passed via extra=...
-        if hasattr(record, "match_id"): log_record["match_id"] = record.match_id
-        if hasattr(record, "score"): log_record["score"] = record.score
-        if hasattr(record, "scorer"): log_record["scorer"] = record.scorer
-        if hasattr(record, "event_key"): log_record["event_key"] = record.event_key
-        if hasattr(record, "event"): log_record["event"] = record.event
+        _EXTRA_FIELDS = {
+            "match_id", "score", "scorer", "event_key", "event",
+            "error", "diff", "diff_hrs", "competition", "days_left",
+            "retry_in", "status", "count", "threshold", "group_id",
+            "active_matches", "failed_events", "in_flight", "pending_var",
+            "uptime_hours", "attempts",
+        }
+        for field in _EXTRA_FIELDS:
+            val = getattr(record, field, None)
+            if val is not None:
+                log_record[field] = val
         
         return json.dumps(log_record)
 
