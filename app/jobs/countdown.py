@@ -77,7 +77,7 @@ def check_world_cup_countdown():
                 logger.info("wc_countdown_tournament_ended_silencing")
                 return
             
-            data = svc.fetch("competitions/WC/matches?status=SCHEDULED", ttl=300)
+            data = svc.fetch("competitions/WC/matches?status=SCHEDULED,TIMED", ttl=300)
             if isinstance(data, dict):
                 matches = data.get("matches", [])
                 today_str = datetime.now(Config.TZ).strftime("%Y-%m-%d")
