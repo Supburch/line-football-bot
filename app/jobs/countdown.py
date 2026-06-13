@@ -6,6 +6,7 @@ from app.flex.flex_builders import build_countdown_flex
 from app.services.line_service import broadcast
 from app.utils.logger import logger
 from app.utils.greetings import FOOTBALL_GREETINGS
+from app.utils.free_tv_schedule import format_free_tv_section, is_free_tv_match
 
 def check_world_cup_countdown():
     """Calculates remaining days and broadcasts a premium countdown Flex Message every morning."""
@@ -92,6 +93,9 @@ def check_world_cup_countdown():
                     except Exception:
                         pass
                 
+                today_date = datetime.now(Config.TZ).date()
+                free_tv_section = format_free_tv_section(today_date)
+
                 if today_matches:
                     quote = random.choice(FOOTBALL_GREETINGS)
                     briefing_lines = [
@@ -106,8 +110,15 @@ def check_world_cup_countdown():
                         time_str = dt_bkk.strftime("%H:%M น.")
                         stage_raw = m.get("stage", "")
                         stage_th = STAGE_TRANSLATION.get(stage_raw, "ฟุตบอลโลก")
-                        briefing_lines.append(f"🕐 {time_str} | {home} vs {away} ({stage_th})")
+                        # Mark free-to-watch matches with 🆓 badge
+                        if is_free_tv_match(home, away, today_date):
+                            briefing_lines.append(f"🆓🕐 {time_str} | {home} vs {away} ({stage_th}) 📺 ช่อง29")
+                        else:
+                            briefing_lines.append(f"🕐 {time_str} | {home} vs {away} ({stage_th})")
                     briefing_lines.append("\nอย่าลืมเฝ้าหน้าจอเชียร์ทีมรักกันนะครับ! ⚽🔥")
+                    # Append prominent free TV section if there are free matches today
+                    if free_tv_section:
+                        briefing_lines.append(free_tv_section)
                     broadcast("\n".join(briefing_lines))
                 else:
                     quote = random.choice(FOOTBALL_GREETINGS)
@@ -117,6 +128,9 @@ def check_world_cup_countdown():
                         f"วันนี้ไม่มีโปรแกรมการแข่งขันฟุตบอลโลก (วันพักผ่อนของนักกีฬาและทีมงาน) 😴\n"
                         f"รักษาสุขภาพและเตรียมกำลังใจให้พร้อมสำหรับรอบถัดไปนะครับ! ⚽☕"
                     )
+                    # Even on rest days, show free TV schedule if available
+                    if free_tv_section:
+                        rest_day_text += free_tv_section
                     broadcast(rest_day_text)
             
     except Exception as e:

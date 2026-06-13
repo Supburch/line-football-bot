@@ -3,6 +3,7 @@ from app.config import Config
 from app.utils.helpers import safe_url, format_minute, is_exact_team_match
 from app.utils.constants import WATCHED_TEAMS, WATCHED_COUNTRIES, EPL_LOGO, WC_LOGO, WC_CODE, UCL_LOGO, UCL_CODE, ACTIVE_COMPETITION, COUNTDOWN_COVER, STAGE_TRANSLATION
 from app.utils.aliases import FlexDict
+from app.utils.free_tv_schedule import is_free_tv_match
 
 def build_goal_flex(h_name: str, a_name: str, hs: int, as_: int,
                     h_logo: str, a_logo: str, scorer: str = "", minute: object = None,
@@ -372,6 +373,7 @@ def build_standings_flex(standings_groups) -> FlexDict:
 
 def build_upcoming_flex(matches) -> FlexDict:
     rows = []
+    has_free = False
     for m in matches[:10]:
         home = m["homeTeam"]["name"]
         away = m["awayTeam"]["name"]
@@ -380,8 +382,10 @@ def build_upcoming_flex(matches) -> FlexDict:
             dt_utc  = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
             dt_bkk  = dt_utc.astimezone(Config.TZ)
             bkk_time = dt_bkk.strftime("%d/%m %H:%M น.")
+            match_date = dt_bkk.date()
         except Exception:
             bkk_time = utc_str
+            match_date = None
 
         h_logo = m["homeTeam"].get("crest", "")
         a_logo = m["awayTeam"].get("crest", "")
@@ -390,10 +394,21 @@ def build_upcoming_flex(matches) -> FlexDict:
         stage_th = STAGE_TRANSLATION.get(stage_raw, "")
         stage_text = f" ({stage_th})" if stage_th else ""
 
+        # Check if this match is free-to-watch
+        is_free = match_date and is_free_tv_match(home, away, match_date)
+        if is_free:
+            has_free = True
+
+        # Time label with free TV badge
+        time_label = f"🆓 {bkk_time}{stage_text}  📺 ช่อง29" if is_free else f"🕐 {bkk_time}{stage_text}"
+        time_color = "#16a34a" if is_free else "#888888"
+        row_bg = "#F0FFF4" if is_free else "#FFFFFF"
+
         rows.append({
             "type": "box", "layout": "vertical", "margin": "md",
+            "backgroundColor": row_bg, "cornerRadius": "md", "paddingAll": "sm",
             "contents": [
-                {"type": "text", "text": f"🕐 {bkk_time}{stage_text}", "size": "xs", "color": "#888888"},
+                {"type": "text", "text": time_label, "size": "xs", "color": time_color, "weight": "bold" if is_free else "regular"},
                 {
                     "type": "box", "layout": "horizontal", "margin": "sm", "alignItems": "center",
                     "contents": [
@@ -420,6 +435,13 @@ def build_upcoming_flex(matches) -> FlexDict:
         header_color = "#38003c"
         header_title = "📅 EPL FIXTURES"
 
+    # Footer with free TV legend if any matches are free
+    footer_contents = []
+    if has_free:
+        footer_contents.append({"type": "text", "text": "🆓 = ดูฟรี ช่อง 29 Monomax Sports", "size": "xs", "align": "center", "color": "#16a34a", "weight": "bold"})
+    footer_contents.append({"type": "text", "text": f"Updated: {datetime.now(Config.TZ).strftime('%H:%M')}",
+                             "size": "xxs", "align": "center", "color": "#aaaaaa"})
+
     return {
         "type": "bubble",
         "header": {
@@ -428,6 +450,10 @@ def build_upcoming_flex(matches) -> FlexDict:
                           "color": "#ffffff", "weight": "bold", "size": "md", "align": "center"}]
         },
         "body": {"type": "box", "layout": "vertical", "contents": rows},
+        "footer": {
+            "type": "box", "layout": "vertical",
+            "contents": footer_contents
+        },
     }
 
 def build_scorers_flex(scorers) -> FlexDict:
