@@ -56,9 +56,9 @@ WATCHED_TEAMS = [
 
 WATCHED_COUNTRIES = [
     "England",
-    "Japan",
     "Germany",
     "Scotland",
+    "Brazil",
 ]
 
 # Translation map for football tournament stages
