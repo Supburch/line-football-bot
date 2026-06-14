@@ -2,7 +2,7 @@ import time
 from app.config import Config
 from app.services.football_service import svc
 from app.services.line_service import broadcast, BroadcastResult
-from app.repositories.supabase_client import get_sent_event, commit_match_state
+from app.repositories.supabase_client import get_sent_event, commit_match_state, get_match_score
 from app.utils.helpers import is_watched_match, first_not_none
 from app.flex.flex_builders import build_goal_flex, build_var_flex, build_penalty_shootout_flex
 from app.utils.constants import EPL_CODE, WC_CODE, ACTIVE_COMPETITION, CLEANUP_MATCH_STATUSES
@@ -92,8 +92,13 @@ def monitor_goals(live_matches: list = None):
                 continue
 
             score = m.get("score", {})
-            hs = first_not_none(score.get("fullTime", {}).get("home"), score.get("halfTime", {}).get("home"), 0)
-            as_ = first_not_none(score.get("fullTime", {}).get("away"), score.get("halfTime", {}).get("away"), 0)
+            # Robust score extraction: regularTime (WC/knockout) > fullTime > halfTime > 0
+            # regularTime is the most stable field during live World Cup matches
+            reg = score.get("regularTime") or {}
+            ft  = score.get("fullTime") or {}
+            ht  = score.get("halfTime") or {}
+            hs = first_not_none(reg.get("home"), ft.get("home"), ht.get("home"), 0)
+            as_ = first_not_none(reg.get("away"), ft.get("away"), ht.get("away"), 0)
             
             try:
                 hs = int(hs)
@@ -172,6 +177,15 @@ def monitor_goals(live_matches: list = None):
                     state_manager.commit_memory(fid, hs, as_)
                     continue
                 else:
+                    # RECOVERY CHECK: Query Supabase for the last committed score for this match.
+                    # If the DB score matches current API score, it means we already handled this
+                    # state before a restart — just load it silently without broadcasting.
+                    db_score = get_match_score(fid)
+                    if db_score and db_score == (hs, as_):
+                        state_manager.commit_memory(fid, hs, as_)
+                        logger.info("recovery_from_db_score", extra={"match_id": fid, "score": f"{hs}-{as_}"})
+                        continue
+                    
                     # SAFE INIT: Always initialize to CURRENT score.
                     # This means we only detect FUTURE goals, never re-fire on restart.
                     # We may miss a goal that happened exactly during a restart window,

@@ -56,8 +56,7 @@ WATCHED_TEAMS = [
 
 WATCHED_COUNTRIES = [
     "England",
-    "Brazil",
-    "France",
+    "Japan",
     "Germany",
     "Scotland",
 ]

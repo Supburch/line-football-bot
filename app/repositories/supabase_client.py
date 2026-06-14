@@ -85,3 +85,18 @@ def cleanup_sent_events_db():
     if not supabase: return
     cutoff = (datetime.now(Config.TZ) - timedelta(hours=24)).isoformat()
     execute_with_retry(supabase.table("sent_events").delete().lt("created_at", cutoff))
+
+def get_match_score(match_id: str):
+    """Retrieve the last committed score for a match from Supabase.
+    Returns (home_score, away_score) tuple or None if not found."""
+    if not supabase: return None
+    try:
+        res = execute_with_retry(
+            supabase.table("match_scores").select("home_score,away_score").eq("match_id", match_id)
+        )
+        if res and res.data:
+            row = res.data[0]
+            return (int(row["home_score"]), int(row["away_score"]))
+    except Exception as e:
+        logger.error({"event": "get_match_score_failed", "match_id": match_id, "error": str(e)})
+    return None
