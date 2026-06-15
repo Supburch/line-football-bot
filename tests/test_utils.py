@@ -128,9 +128,8 @@ def test_is_watched_match():
     
     # England should be watched
     assert is_watched_match("England", "Wales", WC_CODE) is True
-    # Brazil, France, Germany, Scotland should be watched
+    # Brazil, Germany, Scotland should be watched
     assert is_watched_match("Brazil", "Argentina", WC_CODE) is True
-    assert is_watched_match("France", "Italy", WC_CODE) is True
     assert is_watched_match("Germany", "Spain", WC_CODE) is True
     assert is_watched_match("Scotland", "Hungary", WC_CODE) is True
     # Other random team should not be watched

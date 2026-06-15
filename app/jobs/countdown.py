@@ -132,6 +132,20 @@ def check_world_cup_countdown():
                     if free_tv_section:
                         rest_day_text += free_tv_section
                     broadcast(rest_day_text)
+            else:
+                # API failed (rate limit / network error) — send fallback greeting
+                logger.warning("wc_morning_api_failed_fallback")
+                today_date = datetime.now(Config.TZ).date()
+                free_tv_section = format_free_tv_section(today_date)
+                quote = random.choice(FOOTBALL_GREETINGS)
+                fallback_text = (
+                    f"🌅 สวัสดีตอนเช้าครับแฟนบอลโลก! 🏆\n\n"
+                    f"💬 \"{quote}\"\n\n"
+                    f"วันนี้มีฟุตบอลโลกรอเชียร์อยู่! ⚽🔥"
+                )
+                if free_tv_section:
+                    fallback_text += free_tv_section
+                broadcast(fallback_text)
             
     except Exception as e:
         logger.error("wc_countdown_exception", extra={"error": str(e)})

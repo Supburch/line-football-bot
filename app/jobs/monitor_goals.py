@@ -1,4 +1,5 @@
 import time
+import threading
 from app.config import Config
 from app.services.football_service import svc
 from app.services.line_service import broadcast, BroadcastResult
@@ -11,6 +12,9 @@ from app.services.match_state_manager import MatchStateManager
 
 # Initialize the robust, thread-safe state manager
 state_manager = MatchStateManager()
+
+# Process-level lock to prevent concurrent execution from smart_schedule + goal_monitor
+_monitor_lock = threading.Lock()
 
 def detect_score_transition(fid: str, hs: int, as_: int):
     """Calculates if the score transition is a goal, var, and the goal difference."""
@@ -39,6 +43,16 @@ def should_ignore_rollback(goal_diff: int, status: str, fid: str) -> bool:
     return False
 
 def monitor_goals(live_matches: list = None):
+    # Prevent concurrent execution (smart_schedule + goal_monitor can overlap)
+    if not _monitor_lock.acquire(blocking=False):
+        logger.info("monitor_goals_skipped_concurrent")
+        return
+    try:
+        _monitor_goals_inner(live_matches)
+    finally:
+        _monitor_lock.release()
+
+def _monitor_goals_inner(live_matches: list = None):
     try:
         # Run TTL eviction cleanup and log health report on every poll
         state_manager.cleanup_expired_states()
@@ -84,7 +98,42 @@ def monitor_goals(live_matches: list = None):
             # -----------------------------------------------------------------------------------------
             
             # Edge Case 3: Memory Cleanup for finished and irregular matches
+            # BUT first check if there's a final score change to broadcast!
             if status in CLEANUP_MATCH_STATUSES:
+                if is_watched_match(home_name, away_name, comp_code):
+                    score = m.get("score", {})
+                    reg = score.get("regularTime") or {}
+                    ft  = score.get("fullTime") or {}
+                    ht  = score.get("halfTime") or {}
+                    final_hs = first_not_none(reg.get("home"), ft.get("home"), ht.get("home"), 0)
+                    final_as = first_not_none(reg.get("away"), ft.get("away"), ht.get("away"), 0)
+                    try:
+                        final_hs = int(final_hs)
+                        final_as = int(final_as)
+                    except (ValueError, TypeError):
+                        final_hs = final_as = 0
+                    
+                    prev_score = state_manager.get_score(fid)
+                    if prev_score and (final_hs, final_as) != prev_score:
+                        new_total = final_hs + final_as
+                        old_total = prev_score[0] + prev_score[1]
+                        if new_total > old_total:
+                            event_key = f"{fid}-{final_hs}-{final_as}"
+                            if not get_sent_event(event_key):
+                                goals = m.get("goals", [])
+                                scorer = ""
+                                minute_s = ""
+                                if goals:
+                                    last_g = goals[-1]
+                                    scorer = (last_g.get("scorer") or {}).get("name", "")
+                                    minute_s = str(last_g.get("minute", "")).rstrip("'")
+                                h_logo = m["homeTeam"].get("crest", "")
+                                a_logo = m["awayTeam"].get("crest", "")
+                                flex_msg = build_goal_flex(home_name, away_name, final_hs, final_as, h_logo, a_logo, scorer, minute_s, comp_code=comp_code)
+                                logger.info("final_whistle_goal", extra={"match_id": fid, "score": f"{final_hs}-{final_as}", "prev": f"{prev_score[0]}-{prev_score[1]}"})
+                                result = broadcast(flex_msg)
+                                if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
+                                    commit_match_state(fid, event_key, final_hs, final_as)
                 state_manager.cleanup_match(fid)
                 continue
                 
@@ -260,22 +309,19 @@ def monitor_goals(live_matches: list = None):
             # BROADCAST FIRST
             result = broadcast(flex_msg)
 
+            # ALWAYS commit memory after successful broadcast to prevent duplicates.
+            # The message was already sent — memory MUST reflect that, regardless of DB result.
             if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
-                # COMMIT MATCH STATE AFTER BROADCAST
-                commit_res = commit_match_state(fid, event_key, hs, as_)
+                state_manager.commit_memory(fid, hs, as_, scorer if is_goal else "")
+                state_manager.clear_in_flight(event_key)
                 
+                # Attempt DB commit (best-effort, won't cause duplicate if it fails)
+                commit_res = commit_match_state(fid, event_key, hs, as_)
                 if commit_res.success:
-                    # Commit to memory only if DB commit succeeded (or if no DB)
-                    state_manager.commit_memory(fid, hs, as_, scorer if is_goal else "")
                     state_manager.clear_event_failure(event_key)
-                    state_manager.clear_in_flight(event_key)
                     logger.info("state_committed", extra={"match_id": fid, "event_key": event_key})
                 else:
-                    # DB failed, retryable
-                    state_manager.clear_in_flight(event_key)
-                    abandoned = state_manager.register_event_failure(event_key, is_fatal=False)
-                    if abandoned:
-                        state_manager.commit_memory(fid, hs, as_)
+                    logger.warning("db_commit_failed_after_broadcast", extra={"match_id": fid, "event_key": event_key})
                     
             elif result == BroadcastResult.RETRYABLE_FAIL:
                 logger.warning("broadcast_retryable_fail", extra={"match_id": fid})
