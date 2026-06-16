@@ -1,4 +1,6 @@
 import atexit
+import time
+import threading
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.services.line_service import broadcast_executor
 from app.jobs.monitor_goals import monitor_goals, log_state_manager_health
@@ -36,6 +38,21 @@ def start_scheduler():
             logger.info("startup_failsafe_fast_mode_activated")
         except Exception:
             pass
+
+    # Asynchronously check for missed morning greeting if starting up after 8:00 AM BKK
+    def _async_startup_greeting_check():
+        time.sleep(5)  # Let the app stabilize and connect to Supabase
+        try:
+            from datetime import datetime
+            from app.config import Config
+            now_bkk = datetime.now(Config.TZ)
+            if now_bkk.hour >= 8:
+                logger.info("startup_checking_missed_morning_greeting", extra={"current_hour": now_bkk.hour})
+                check_world_cup_countdown()
+        except Exception as startup_err:
+            logger.error("startup_greeting_check_failed", extra={"error": str(startup_err)})
+
+    threading.Thread(target=_async_startup_greeting_check, daemon=True).start()
 
     atexit.register(lambda: scheduler.shutdown())
     atexit.register(lambda: broadcast_executor.shutdown(wait=False))
