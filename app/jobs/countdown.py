@@ -6,7 +6,7 @@ from app.flex.flex_builders import build_countdown_flex
 from app.services.line_service import broadcast, BroadcastResult
 from app.repositories.supabase_client import get_sent_event, mark_sent_event
 from app.utils.logger import logger
-from app.utils.greetings import FOOTBALL_GREETINGS
+from app.utils.greetings import get_random_greeting
 from app.utils.free_tv_schedule import format_free_tv_section, is_free_tv_match
 
 def check_world_cup_countdown():
@@ -104,7 +104,7 @@ def check_world_cup_countdown():
                 free_tv_section = format_free_tv_section(today_date)
 
                 if today_matches:
-                    quote = random.choice(FOOTBALL_GREETINGS)
+                    quote = get_random_greeting()
                     briefing_lines = [
                         f"🌅 สวัสดีตอนเช้าครับแฟนบอลโลก! 🏆\n\n💬 \"{quote}\"\n\nวันนี้มีศึกดวลแข้งฟุตบอลโลกรอคุณอยู่ ดังนี้:\n"
                     ]
@@ -128,7 +128,7 @@ def check_world_cup_countdown():
                     if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
                         mark_sent_event(greeting_key)
                 else:
-                    quote = random.choice(FOOTBALL_GREETINGS)
+                    quote = get_random_greeting()
                     rest_day_text = (
                         f"🌅 สวัสดีตอนเช้าวันพักแข้งครับแฟนบอลโลก! 🏆\n\n"
                         f"💬 \"{quote}\"\n\n"
