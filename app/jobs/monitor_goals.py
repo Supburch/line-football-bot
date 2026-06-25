@@ -20,7 +20,7 @@ def detect_score_transition(fid: str, hs: int, as_: int):
     """Calculates if the score transition is a goal, var, and the goal difference."""
     prev_score = state_manager.get_score(fid)
     if not prev_score:
-        return False, False, 0, (0, 0)
+        return False, False, 0, (0, 0), False
         
     prev_hs, prev_as = prev_score
     prev_total = prev_hs + prev_as
@@ -29,8 +29,9 @@ def detect_score_transition(fid: str, hs: int, as_: int):
     is_goal = new_total > prev_total
     is_var = new_total < prev_total
     goal_diff = abs(new_total - prev_total)
+    score_shifted = (hs != prev_hs) or (as_ != prev_as)
     
-    return is_goal, is_var, goal_diff, prev_score
+    return is_goal, is_var, goal_diff, prev_score, score_shifted
 
 def should_ignore_rollback(goal_diff: int, status: str, fid: str) -> bool:
     """Edge Case 1 & 2: Ignore rollback if diff > 1 or match is not active."""
@@ -244,9 +245,13 @@ def _monitor_goals_inner(live_matches: list = None):
                     continue
 
             # Detect Transition
-            is_goal, is_var, goal_diff, prev_score = detect_score_transition(fid, hs, as_)
+            is_goal, is_var, goal_diff, prev_score, score_shifted = detect_score_transition(fid, hs, as_)
             
             if not is_goal and not is_var:
+                if score_shifted:
+                    # Score shifted sides without total changing (e.g., 1-0 to 0-1)
+                    state_manager.commit_memory(fid, hs, as_)
+                    logger.info("score_shifted_silently", extra={"match_id": fid, "score": f"{hs}-{as_}"})
                 # Clear pending var if score bounced back to normal
                 state_manager.check_pending_var(fid, (hs, as_))
                 continue
@@ -254,7 +259,9 @@ def _monitor_goals_inner(live_matches: list = None):
             # Handle VAR
             if is_var:
                 if should_ignore_rollback(goal_diff, status, fid):
-                    state_manager.commit_memory(fid, hs, as_) # Force resync memory
+                    # Ignore entirely! Do NOT commit memory. If the API glitched to 0-0, 
+                    # we want to keep the old valid memory so it doesn't trigger a ghost goal later.
+                    logger.warning("suspicious_rollback_memory_retained", extra={"match_id": fid, "kept_score": f"{prev_score[0]}-{prev_score[1]}", "ignored_score": f"{hs}-{as_}"})
                     continue
                     
                 confirmed_prev = state_manager.check_pending_var(fid, (hs, as_))
