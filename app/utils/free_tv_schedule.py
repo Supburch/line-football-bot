@@ -26,6 +26,15 @@ FREE_TV_MATCHES = [
     (date(2026, 6, 25), "08.00 น.", "อาร์เจนตินา", "อัลจีเรีย", "Argentina", "Algeria"),
     (date(2026, 6, 26), "06.00 น.", "ตูนีเซีย", "ฮอลแลนด์", "Tunisia", "Netherlands"),
     (date(2026, 6, 27), "10.00 น.", "นิวซีแลนด์", "เบลเยียม", "New Zealand", "Belgium"),
+    # ---- New additions ----
+    (date(2026, 6, 28), "02.00 น.", "แอฟริกาใต้", "แคนาดา", "South Africa", "Canada"),
+    (date(2026, 6, 29), "00.00 น.", "บราซิล", "ญี่ปุ่น", "Brazil", "Japan"),
+    (date(2026, 6, 30), "00.00 น.", "ไอวอรีโคสต์", "นอร์เวย์", "Côte d'Ivoire", "Norway"),
+    (date(2026, 7, 1), "08.00 น.", "เม็กซิโก", "เอกวาดอร์", "Mexico", "Ecuador"),
+    (date(2026, 7, 1), "23.00 น.", "อังกฤษ", "ดีอาร์ คองโก", "England", "DR Congo"),
+    (date(2026, 7, 2), "02.00 น.", "สเปน", "ออสเตรีย", "Spain", "Austria"),
+    (date(2026, 7, 3), "10.00 น.", "สวิตเซอร์แลนด์", "แอลจีเรีย", "Switzerland", "Algeria"),
+    (date(2026, 7, 4), "08.30 น.", "โคลอมเบีย", "กานา", "Colombia", "Ghana"),
 ]
 
 # Matches on 25 มิ.ย. might be a duplicate or different round — kept as provided in schedule
