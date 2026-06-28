@@ -4,6 +4,7 @@ from app.utils.helpers import safe_url, format_minute, is_exact_team_match
 from app.utils.constants import WATCHED_TEAMS, WATCHED_COUNTRIES, EPL_LOGO, WC_LOGO, WC_CODE, UCL_LOGO, UCL_CODE, ACTIVE_COMPETITION, COUNTDOWN_COVER, STAGE_TRANSLATION
 from app.utils.aliases import FlexDict
 from app.utils.free_tv_schedule import is_free_tv_match
+from app.services.line_service import get_remaining_quota_text
 
 def build_goal_flex(h_name: str, a_name: str, hs: int, as_: int,
                     h_logo: str, a_logo: str, scorer: str = "", minute: object = None,
@@ -283,8 +284,12 @@ def build_standings_flex(standings_groups) -> FlexDict:
                 },
                 "footer": {
                     "type": "box", "layout": "vertical",
-                    "contents": [{"type": "text", "text": f"Updated: {datetime.now(Config.TZ).strftime('%H:%M')}",
-                                   "size": "xxs", "align": "center", "color": "#aaaaaa"}]
+                    "contents": [
+                        {"type": "text", "text": f"Updated: {datetime.now(Config.TZ).strftime('%H:%M')}",
+                         "size": "xxs", "align": "center", "color": "#aaaaaa"},
+                        {"type": "text", "text": get_remaining_quota_text(),
+                         "size": "xxs", "align": "center", "color": "#aaaaaa", "margin": "xs"}
+                    ]
                 }
             })
             
@@ -366,8 +371,12 @@ def build_standings_flex(standings_groups) -> FlexDict:
         "body": {"type": "box", "layout": "vertical", "paddingAll": "md", "contents": rows},
         "footer": {
             "type": "box", "layout": "vertical",
-            "contents": [{"type": "text", "text": f"Updated: {datetime.now(Config.TZ).strftime('%H:%M')}",
-                           "size": "xxs", "align": "center", "color": "#aaaaaa"}]
+            "contents": [
+                {"type": "text", "text": f"Updated: {datetime.now(Config.TZ).strftime('%H:%M')}",
+                 "size": "xxs", "align": "center", "color": "#aaaaaa"},
+                {"type": "text", "text": get_remaining_quota_text(),
+                 "size": "xxs", "align": "center", "color": "#aaaaaa", "margin": "xs"}
+            ]
         }
     }
 
@@ -441,6 +450,8 @@ def build_upcoming_flex(matches) -> FlexDict:
         footer_contents.append({"type": "text", "text": "🆓 = ดูฟรี ช่อง 29 Monomax Sports", "size": "xs", "align": "center", "color": "#16a34a", "weight": "bold"})
     footer_contents.append({"type": "text", "text": f"Updated: {datetime.now(Config.TZ).strftime('%H:%M')}",
                              "size": "xxs", "align": "center", "color": "#aaaaaa"})
+    footer_contents.append({"type": "text", "text": get_remaining_quota_text(),
+                             "size": "xxs", "align": "center", "color": "#aaaaaa", "margin": "xs"})
 
     return {
         "type": "bubble",
@@ -519,8 +530,12 @@ def build_scorers_flex(scorers) -> FlexDict:
         "body": {"type": "box", "layout": "vertical", "paddingAll": "md", "contents": rows},
         "footer": {
             "type": "box", "layout": "vertical",
-            "contents": [{"type": "text", "text": f"Updated: {datetime.now(Config.TZ).strftime('%H:%M')}",
-                           "size": "xxs", "align": "center", "color": "#aaaaaa"}]
+            "contents": [
+                {"type": "text", "text": f"Updated: {datetime.now(Config.TZ).strftime('%H:%M')}",
+                 "size": "xxs", "align": "center", "color": "#aaaaaa"},
+                {"type": "text", "text": get_remaining_quota_text(),
+                 "size": "xxs", "align": "center", "color": "#aaaaaa", "margin": "xs"}
+            ]
         }
     }
 

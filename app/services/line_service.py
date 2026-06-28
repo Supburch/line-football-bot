@@ -58,3 +58,15 @@ def broadcast(msg: Union[str, FlexDict]) -> BroadcastResult:
         # Assuming all failed might be network or token issue -> retryable
         # In a real system we could differentiate 401 (fatal) vs 500 (retryable)
         return BroadcastResult.RETRYABLE_FAIL
+
+def get_remaining_quota_text() -> str:
+    try:
+        with ApiClient(line_config) as client:
+            api = MessagingApi(client)
+            res = api.get_message_quota_consumption()
+            usage = res.total_usage
+            remaining = max(0, 200 - usage)
+            return f"โควต้าคงเหลือ: {remaining}/200"
+    except Exception as e:
+        logger.error({"event": "get_quota_failed", "error": str(e)})
+        return "โควต้าคงเหลือ: ไม่ทราบ"
