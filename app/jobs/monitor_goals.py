@@ -6,7 +6,7 @@ from app.services.line_service import broadcast, BroadcastResult
 from app.repositories.supabase_client import get_sent_event, commit_match_state, get_match_score
 from app.utils.helpers import is_watched_match, first_not_none
 from app.flex.flex_builders import build_goal_flex, build_var_flex, build_penalty_shootout_flex
-from app.utils.constants import EPL_CODE, WC_CODE, ACTIVE_COMPETITION, CLEANUP_MATCH_STATUSES
+from app.utils.constants import EPL_CODE, WC_CODE, ACTIVE_COMPETITION, CLEANUP_MATCH_STATUSES, LIVE_SCORE_WC_DISABLED
 from app.utils.logger import logger
 from app.services.match_state_manager import MatchStateManager
 
@@ -58,6 +58,11 @@ def _monitor_goals_inner(live_matches: list = None):
         # Run TTL eviction cleanup and log health report on every poll
         state_manager.cleanup_expired_states()
         state_manager.log_health_report()
+
+        # WC 26 Temporary Disable: ปิดการแจ้งสกอร์สดช่วง World Cup ชั่วคราว
+        if LIVE_SCORE_WC_DISABLED and ACTIVE_COMPETITION == WC_CODE:
+            logger.info("live_score_disabled_wc", extra={"reason": "LIVE_SCORE_WC_DISABLED=True during WC 26"})
+            return
         
         if live_matches is not None:
             matches = live_matches

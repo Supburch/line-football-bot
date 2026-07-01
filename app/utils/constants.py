@@ -34,6 +34,12 @@ class DynamicCompetition:
         return str(self).upper()
 
 ACTIVE_COMPETITION = DynamicCompetition()
+
+# --- Temporary WC 26 flag ---
+# ตั้งเป็น True เพื่อปิดการแจ้งสกอร์สดช่วง WC 26 ชั่วคราว
+# เปลี่ยนเป็น False เมื่อต้องการเปิดคืน
+LIVE_SCORE_WC_DISABLED = True
+
 BOT_PREFIX = "บอตเว้ย"
 WAKE_WORDS = ["บอตเว้ย"]
 DEFAULT_LOGO = "https://via.placeholder.com/100/CCCCCC/FFFFFF?text=?"
