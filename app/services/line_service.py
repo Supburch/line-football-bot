@@ -19,22 +19,24 @@ class BroadcastResult(Enum):
 line_config = Configuration(access_token=Config.LINE_TOKEN)
 broadcast_executor = ThreadPoolExecutor(max_workers=10, thread_name_prefix="Broadcast")
 
-def broadcast(msg: Union[str, FlexDict]) -> BroadcastResult:
+def broadcast(msg: Union[str, FlexDict, list[Union[str, FlexDict]]]) -> BroadcastResult:
     groups = db_get_groups()
     if not groups:
         return BroadcastResult.SUCCESS # Nothing to do
 
-    line_msg = (
-        FlexMessage(alt_text="EPL Alert", contents=FlexContainer.from_dict(msg))
-        if isinstance(msg, dict)
-        else TextMessage(text=msg)
-    )
+    raw_msgs = msg if isinstance(msg, list) else [msg]
+    line_msgs = []
+    for m in raw_msgs:
+        if isinstance(m, dict):
+            line_msgs.append(FlexMessage(alt_text="EPL Alert", contents=FlexContainer.from_dict(m)))
+        else:
+            line_msgs.append(TextMessage(text=m))
 
     def _send(gid: str) -> bool:
         try:
             with ApiClient(line_config) as client:
                 MessagingApi(client).push_message(
-                    PushMessageRequest(to=gid, messages=[line_msg])
+                    PushMessageRequest(to=gid, messages=line_msgs)
                 )
             return True
         except Exception as e:

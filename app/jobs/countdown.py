@@ -2,7 +2,7 @@ import random
 from datetime import datetime
 from app.config import Config
 from app.utils.constants import WORLD_CUP_START, STAGE_TRANSLATION, TERMINAL_MATCH_STATUSES
-from app.flex.flex_builders import build_countdown_flex
+from app.flex.flex_builders import build_countdown_flex, build_scorers_flex
 from app.services.line_service import broadcast, BroadcastResult
 from app.repositories.supabase_client import get_sent_event, mark_sent_event
 from app.utils.logger import logger
@@ -87,59 +87,26 @@ def check_world_cup_countdown():
                 mark_sent_event(greeting_key)
                 return
             
-            data = svc.fetch("competitions/WC/matches?status=SCHEDULED,TIMED", ttl=300)
-            if isinstance(data, dict):
-                matches = data.get("matches", [])
-                today_matches = []
-                for m in matches:
-                    utc_str = m.get("utcDate", "")
-                    try:
-                        dt_utc  = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
-                        dt_bkk  = dt_utc.astimezone(Config.TZ)
-                        if dt_bkk.strftime("%Y-%m-%d") == today_str:
-                            today_matches.append(m)
-                    except Exception:
-                        pass
-                
-                free_tv_section = format_free_tv_section(today_date)
+            # Only display greeting + top scorers
+            quote = get_random_greeting()
+            greeting_text = (
+                f"🌅 สวัสดีตอนเช้าครับแฟนบอลโลก! 🏆\n\n"
+                f"💬 \"{quote}\""
+            )
 
-                if today_matches:
-                    quote = get_random_greeting()
-                    briefing_lines = [
-                        f"🌅 สวัสดีตอนเช้าครับแฟนบอลโลก! 🏆\n\n💬 \"{quote}\"\n\nวันนี้มีศึกดวลแข้งฟุตบอลโลกรอคุณอยู่ ดังนี้:\n"
-                    ]
-                    for m in today_matches:
-                        home = m["homeTeam"]["name"]
-                        away = m["awayTeam"]["name"]
-                        utc_str = m.get("utcDate", "")
-                        dt_utc  = datetime.fromisoformat(utc_str.replace("Z", "+00:00"))
-                        dt_bkk  = dt_utc.astimezone(Config.TZ)
-                        time_str = dt_bkk.strftime("%H:%M น.")
-                        stage_raw = m.get("stage", "")
-                        stage_th = STAGE_TRANSLATION.get(stage_raw, "ฟุตบอลโลก")
-                        if is_free_tv_match(home, away, today_date):
-                            briefing_lines.append(f"🆓🕐 {time_str} | {home} vs {away} ({stage_th}) 📺 ช่อง29")
-                        else:
-                            briefing_lines.append(f"🕐 {time_str} | {home} vs {away} ({stage_th})")
-                    briefing_lines.append("\nอย่าลืมเฝ้าหน้าจอเชียร์ทีมรักกันนะครับ! ⚽🔥")
-                    if free_tv_section:
-                        briefing_lines.append(free_tv_section)
-                    result = broadcast("\n".join(briefing_lines))
-                    if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
-                        mark_sent_event(greeting_key)
-                else:
-                    quote = get_random_greeting()
-                    rest_day_text = (
-                        f"🌅 สวัสดีตอนเช้าวันพักแข้งครับแฟนบอลโลก! 🏆\n\n"
-                        f"💬 \"{quote}\"\n\n"
-                        f"วันนี้ไม่มีโปรแกรมการแข่งขันฟุตบอลโลก (วันพักผ่อนของนักกีฬาและทีมงาน) 😴\n"
-                        f"รักษาสุขภาพและเตรียมกำลังใจให้พร้อมสำหรับรอบถัดไปนะครับ! ⚽☕"
-                    )
-                    if free_tv_section:
-                        rest_day_text += free_tv_section
-                    result = broadcast(rest_day_text)
-                    if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
-                        mark_sent_event(greeting_key)
+            from app.utils.constants import ACTIVE_COMPETITION
+            scorers_data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/scorers", ttl=14400)
+            
+            messages_to_send = [greeting_text]
+            if isinstance(scorers_data, dict):
+                scorers = scorers_data.get("scorers", [])
+                if scorers:
+                    scorers_flex = build_scorers_flex(scorers)
+                    messages_to_send.append(scorers_flex)
+            
+            result = broadcast(messages_to_send)
+            if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
+                mark_sent_event(greeting_key)
             else:
                 # API failed (rate limit / network error) — send fallback greeting
                 logger.warning("wc_morning_api_failed_fallback")
