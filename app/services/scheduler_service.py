@@ -39,16 +39,20 @@ def start_scheduler():
         except Exception:
             pass
 
-    # Asynchronously check for missed morning greeting if starting up after 8:00 AM BKK
+    # Asynchronously check for missed morning greeting if restarting within the 8–10 AM window BKK
+    # Only triggers during the 2-hour grace window to recover from a missed cron job.
+    # Intentionally skips restarts at other hours (e.g. night deploys) to avoid off-hours greetings.
     def _async_startup_greeting_check():
         time.sleep(5)  # Let the app stabilize and connect to Supabase
         try:
             from datetime import datetime
             from app.config import Config
             now_bkk = datetime.now(Config.TZ)
-            if now_bkk.hour >= 8:
+            if 8 <= now_bkk.hour < 10:
                 logger.info("startup_checking_missed_morning_greeting", extra={"current_hour": now_bkk.hour})
                 check_world_cup_countdown()
+            else:
+                logger.info("startup_greeting_check_skipped_outside_window", extra={"current_hour": now_bkk.hour})
         except Exception as startup_err:
             logger.error("startup_greeting_check_failed", extra={"error": str(startup_err)})
 
