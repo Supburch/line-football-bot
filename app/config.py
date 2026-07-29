@@ -17,4 +17,7 @@ class Config:
     SUPABASE_URL = get_env("SUPABASE_URL")
     SUPABASE_KEY = get_env("SUPABASE_KEY")
 
+    # The public URL of the bot, needed to serve local images to LINE
+    BASE_URL = os.getenv("BASE_URL")
+
     TZ = pytz.timezone("Asia/Bangkok")

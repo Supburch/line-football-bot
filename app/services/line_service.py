@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Union
 from linebot.v3.messaging import (
     Configuration, ApiClient, MessagingApi,
-    PushMessageRequest, TextMessage, FlexMessage, FlexContainer
+    PushMessageRequest, TextMessage, FlexMessage, FlexContainer, ImageMessage
 )
 from app.config import Config
 from app.utils.logger import logger
@@ -28,7 +28,10 @@ def broadcast(msg: Union[str, FlexDict, list[Union[str, FlexDict]]]) -> Broadcas
     line_msgs = []
     for m in raw_msgs:
         if isinstance(m, dict):
-            line_msgs.append(FlexMessage(alt_text="EPL Alert", contents=FlexContainer.from_dict(m)))
+            if m.get("type") == "image":
+                line_msgs.append(ImageMessage(original_content_url=m["originalContentUrl"], preview_image_url=m["previewImageUrl"]))
+            else:
+                line_msgs.append(FlexMessage(alt_text="EPL Alert", contents=FlexContainer.from_dict(m)))
         else:
             line_msgs.append(TextMessage(text=m))
 

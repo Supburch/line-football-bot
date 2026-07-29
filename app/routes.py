@@ -5,6 +5,11 @@ from app.handlers.message_handler import handler
 def register_routes(app):
     @app.route("/callback", methods=["POST"])
     def callback():
+        # Automatically detect and set the BASE_URL for serving static images if not set
+        from app.config import Config
+        if not Config.BASE_URL and request.host_url:
+            Config.BASE_URL = request.host_url.rstrip('/')
+
         sig = request.headers.get("X-Line-Signature", "")
         body = request.get_data(as_text=True)
         try:
