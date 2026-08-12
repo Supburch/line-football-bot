@@ -190,6 +190,79 @@ def build_penalty_shootout_flex(h_name: str, a_name: str, hs: int, as_: int,
         }
     }
 
+def build_red_card_flex(h_name: str, a_name: str, hs: int, as_: int, h_logo: str, a_logo: str,
+                        player: str = "", team: str = "", minute: object = None,
+                        card_type: str = "RED_CARD", comp_code: str = "PL") -> FlexDict:
+    """Build a flex message for red card notifications."""
+    # Theme configuration
+    if comp_code == WC_CODE:
+        header_bg = "#7F0F25"
+        header_text = "🏆 FIFA WORLD CUP"
+        header_text_color = "#D4AF37"
+        badge_logo = WC_LOGO
+    elif comp_code == UCL_CODE:
+        header_bg = "#0B1E36"
+        header_text = "⭐ UEFA CHAMPIONS LEAGUE"
+        header_text_color = "#D4AF37"
+        badge_logo = UCL_LOGO
+    else:
+        header_bg = "#38003c"
+        header_text = "⚽ PREMIER LEAGUE"
+        header_text_color = "#FFFFFF"
+        badge_logo = EPL_LOGO
+
+    # Card label
+    if card_type == "YELLOW_RED_CARD":
+        card_emoji = "🟨🟥"
+        card_label = "ใบเหลือง-แดง!"
+    else:
+        card_emoji = "🟥"
+        card_label = "ใบแดง!"
+
+    min_text = format_minute(minute)
+    detail_parts = []
+    if player:
+        detail_parts.append(player)
+    if team:
+        detail_parts.append(f"({team})")
+    if min_text:
+        detail_parts.append(f"นาทีที่ {min_text}")
+    detail_text = "  ".join(detail_parts) if detail_parts else "ผู้เล่นโดนใบแดง"
+
+    return {
+        "type": "bubble",
+        "header": {
+            "type": "box", "layout": "horizontal", "backgroundColor": header_bg,
+            "paddingAll": "md", "alignItems": "center",
+            "contents": [
+                {"type": "image", "url": safe_url(badge_logo), "size": "xxs", "flex": 0},
+                {"type": "text", "text": header_text, "weight": "bold",
+                 "color": header_text_color, "size": "sm", "margin": "md", "flex": 1}
+            ]
+        },
+        "body": {
+            "type": "box", "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": f"{card_emoji} {card_label}", "weight": "bold",
+                 "color": "#DC2626", "size": "xl", "align": "center"},
+                {"type": "text", "text": detail_text,
+                 "size": "sm", "align": "center", "color": "#444444", "margin": "sm", "wrap": True},
+                {
+                    "type": "box", "layout": "horizontal", "margin": "lg", "alignItems": "center",
+                    "contents": [
+                        {"type": "image", "url": safe_url(h_logo, h_name), "size": "sm", "flex": 2},
+                        {"type": "text", "text": str(hs), "size": "xxl", "weight": "bold", "align": "center", "flex": 1},
+                        {"type": "text", "text": "-", "size": "xxl", "weight": "bold", "align": "center", "flex": 0},
+                        {"type": "text", "text": str(as_), "size": "xxl", "weight": "bold", "align": "center", "flex": 1},
+                        {"type": "image", "url": safe_url(a_logo, a_name), "size": "sm", "flex": 2},
+                    ]
+                },
+                {"type": "text", "text": f"{h_name}  vs  {a_name}",
+                 "margin": "md", "align": "center", "color": "#666666", "size": "sm"}
+            ]
+        }
+    }
+
 def make_group_box(group_data) -> dict:
     group_name = group_data.get("group", "Unknown Group").replace("GROUP_", "GROUP ")
     table = group_data.get("table", [])

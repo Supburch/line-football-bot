@@ -3,9 +3,9 @@ import threading
 from app.config import Config
 from app.services.football_service import svc
 from app.services.line_service import broadcast, BroadcastResult
-from app.repositories.supabase_client import get_sent_event, commit_match_state, get_match_score
+from app.repositories.supabase_client import get_sent_event, commit_match_state, get_match_score, mark_sent_event
 from app.utils.helpers import is_watched_match, first_not_none
-from app.flex.flex_builders import build_goal_flex, build_var_flex, build_penalty_shootout_flex
+from app.flex.flex_builders import build_goal_flex, build_var_flex, build_penalty_shootout_flex, build_red_card_flex
 from app.utils.constants import EPL_CODE, WC_CODE, ACTIVE_COMPETITION, CLEANUP_MATCH_STATUSES, LIVE_SCORE_WC_DISABLED
 from app.utils.logger import logger
 from app.services.match_state_manager import MatchStateManager
@@ -125,21 +125,10 @@ def _monitor_goals_inner(live_matches: list = None):
                         old_total = prev_score[0] + prev_score[1]
                         if new_total > old_total:
                             event_key = f"{fid}-{final_hs}-{final_as}"
+                            # GOAL notification disabled — only commit state silently.
                             if not get_sent_event(event_key):
-                                goals = m.get("goals", [])
-                                scorer = ""
-                                minute_s = ""
-                                if goals:
-                                    last_g = goals[-1]
-                                    scorer = (last_g.get("scorer") or {}).get("name", "")
-                                    minute_s = str(last_g.get("minute", "")).rstrip("'")
-                                h_logo = m["homeTeam"].get("crest", "")
-                                a_logo = m["awayTeam"].get("crest", "")
-                                flex_msg = build_goal_flex(home_name, away_name, final_hs, final_as, h_logo, a_logo, scorer, minute_s, comp_code=comp_code)
-                                logger.info("final_whistle_goal", extra={"match_id": fid, "score": f"{final_hs}-{final_as}", "prev": f"{prev_score[0]}-{prev_score[1]}"})
-                                result = broadcast(flex_msg)
-                                if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
-                                    commit_match_state(fid, event_key, final_hs, final_as)
+                                logger.info("final_whistle_goal_silent", extra={"match_id": fid, "score": f"{final_hs}-{final_as}", "prev": f"{prev_score[0]}-{prev_score[1]}"})
+                                commit_match_state(fid, event_key, final_hs, final_as)
                 state_manager.cleanup_match(fid)
                 continue
                 
@@ -306,17 +295,26 @@ def _monitor_goals_inner(live_matches: list = None):
                 flex_msg = build_var_flex(home_name, away_name, hs, as_, h_logo, a_logo, scorer, comp_code=comp_code)
                 logger.info("var_detected", extra={"match_id": fid, "event_key": event_key, "scorer_lost": scorer, "competition": comp_code})
             else:
+                # GOAL notification is disabled — only track score silently for VAR detection.
+                # Record scorer for VAR reference, then skip broadcasting.
                 goals = m.get("goals", [])
                 scorer = ""
                 minute_s = ""
                 if goals:
                     last_g = goals[-1]
                     scorer = (last_g.get("scorer") or {}).get("name", "")
-                    minute_s = str(last_g.get("minute", ""))
-                    # Strip trailing apostrophe from minute (e.g. "45'" -> "45")
-                    minute_s = minute_s.rstrip("'")
-                flex_msg = build_goal_flex(home_name, away_name, hs, as_, h_logo, a_logo, scorer, minute_s, comp_code=comp_code)
-                logger.info("goal_detected", extra={"match_id": fid, "score": f"{hs}-{as_}", "scorer": scorer, "event_key": event_key, "competition": comp_code})
+                    minute_s = str(last_g.get("minute", "")).rstrip("'")
+                logger.info("goal_tracked_silent", extra={"match_id": fid, "score": f"{hs}-{as_}", "scorer": scorer, "event_key": event_key, "competition": comp_code})
+                # Commit memory so future VAR detection works, then continue to next match.
+                state_manager.commit_memory(fid, hs, as_, scorer)
+                commit_match_state(fid, event_key, hs, as_)
+                state_manager.clear_in_flight(event_key)
+                # Also check red cards before moving on
+                _process_red_cards_for_match(m, fid, home_name, away_name, hs, as_, h_logo, a_logo, comp_code)
+                continue
+
+            # Only reach here for VAR broadcasts
+            flex_msg = flex_msg  # already assigned above
 
             # BROADCAST FIRST
             result = broadcast(flex_msg)
@@ -348,8 +346,56 @@ def _monitor_goals_inner(live_matches: list = None):
                 if abandoned:
                     state_manager.commit_memory(fid, hs, as_)
 
+            # Check red cards for VAR matches too
+            _process_red_cards_for_match(m, fid, home_name, away_name, hs, as_, h_logo, a_logo, comp_code)
+
     except Exception as e:
         logger.error("monitor_goals_exception", extra={"error": str(e)})
+
+
+def _process_red_cards_for_match(m: dict, fid: str, home_name: str, away_name: str,
+                                  hs: int, as_: int, h_logo: str, a_logo: str, comp_code: str):
+    """Detect and broadcast red card events (RED_CARD / YELLOW_RED_CARD) for a watched match."""
+    try:
+        bookings = m.get("bookings", [])
+        if not bookings:
+            return
+
+        for booking in bookings:
+            card_type = booking.get("type", "")
+            if card_type not in {"RED_CARD", "YELLOW_RED_CARD"}:
+                continue
+
+            player_info = booking.get("player") or {}
+            player_name = player_info.get("name", "")
+            team_info = booking.get("team") or {}
+            team_name = team_info.get("name", "")
+            minute_val = booking.get("minute", "")
+
+            # Build a unique event key for this red card
+            safe_player = (player_name or "unknown").replace(" ", "_")
+            rc_event_key = f"{fid}-{card_type}-{safe_player}-{minute_val}"
+
+            if get_sent_event(rc_event_key):
+                continue  # Already notified
+
+            flex_msg = build_red_card_flex(
+                home_name, away_name, hs, as_, h_logo, a_logo,
+                player=player_name, team=team_name, minute=minute_val,
+                card_type=card_type, comp_code=comp_code
+            )
+            logger.info("red_card_detected", extra={"match_id": fid, "player": player_name,
+                                                     "team": team_name, "minute": minute_val,
+                                                     "type": card_type, "event_key": rc_event_key})
+            result = broadcast(flex_msg)
+            if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
+                mark_sent_event(rc_event_key)
+                logger.info("red_card_notified", extra={"event_key": rc_event_key})
+            else:
+                logger.warning("red_card_broadcast_failed", extra={"event_key": rc_event_key, "result": str(result)})
+    except Exception as e:
+        logger.error("red_card_detection_exception", extra={"match_id": fid, "error": str(e)})
+
 
 def log_state_manager_health():
     """Forces state manager health logging at fixed interval."""
