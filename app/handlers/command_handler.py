@@ -26,7 +26,10 @@ def build_help_text() -> str:
         f"🏆 บอตเว้ย ตาราง\n"
         f"📅 บอตเว้ย โปรแกรม\n"
         f"🥾 บอตเว้ย ดาวซัลโว\n\n"
-        f"🔔 แจ้งเตือนประตูอัตโนมัติ{notification_info}"
+        f"🔔 แจ้งเตือนอัตโนมัติ{notification_info}\n"
+        f"   🔄 VAR (ประตูถูกยกเลิก)\n"
+        f"   🟥 ใบแดง / ใบเหลืองสอง\n"
+        f"   🎯 Penalty Shootout"
     )
 
 def build_live_scores() -> str:

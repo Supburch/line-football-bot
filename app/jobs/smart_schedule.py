@@ -45,7 +45,8 @@ def run_smart_schedule(scheduler):
             pass
 
     bkk_now = datetime.now(Config.TZ)
-    wc_end_buffer = Config.TZ.localize(datetime(2026, 7, 25, 0, 0, 0))
+    # Aligned with DynamicCompetition cutoff in constants.py (wc_cutoff = 2026-07-20)
+    wc_end_buffer = Config.TZ.localize(datetime(2026, 7, 20, 0, 0, 0))
     is_high_speed_allowed = bkk_now < wc_end_buffer
 
     if in_window:

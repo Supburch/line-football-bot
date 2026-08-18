@@ -5,11 +5,6 @@ from app.handlers.message_handler import handler
 def register_routes(app):
     @app.route("/callback", methods=["POST"])
     def callback():
-        # Automatically detect and set the BASE_URL for serving static images if not set
-        from app.config import Config
-        if not Config.BASE_URL and request.host_url:
-            Config.BASE_URL = request.host_url.rstrip('/')
-
         sig = request.headers.get("X-Line-Signature", "")
         body = request.get_data(as_text=True)
         try:
@@ -19,9 +14,28 @@ def register_routes(app):
         return "OK"
 
     @app.route("/")
+    def index():
+        """Lightweight root — does NOT hit the database."""
+        return jsonify({"status": "ok", "service": "football-bot"}), 200
+
     @app.route("/health")
     def health():
-        return jsonify({"status": "healthy", "service": "football-bot"}), 200
+        from app.repositories.supabase_client import supabase
+        from app.utils.logger import logger
+        
+        status = "healthy"
+        try:
+            # Deep health check: ensure DB connectivity
+            supabase.table("users").select("id").limit(1).execute()
+        except Exception as e:
+            logger.error({"event": "health_check_failed", "error": str(e)})
+            return jsonify({
+                "status": "unhealthy", 
+                "service": "football-bot", 
+                "error": "Database connection failed"
+            }), 503
+            
+        return jsonify({"status": status, "service": "football-bot"}), 200
 
     @app.route("/ping")
     def ping():

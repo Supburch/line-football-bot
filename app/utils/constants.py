@@ -38,7 +38,15 @@ ACTIVE_COMPETITION = DynamicCompetition()
 # --- Temporary WC 26 flag ---
 # ตั้งเป็น True เพื่อปิดการแจ้งสกอร์สดช่วง WC 26 ชั่วคราว
 # เปลี่ยนเป็น False เมื่อต้องการเปิดคืน
+# *** AUTO-GUARD: จะปิดการส่งสกอร์สดเฉพาะตอนที่ competition ปัจจุบันเป็น WC เท่านั้น ***
 LIVE_SCORE_WC_DISABLED = True
+
+
+def is_live_score_enabled() -> bool:
+    """Returns True if live score broadcasting is enabled for the current competition."""
+    if LIVE_SCORE_WC_DISABLED and ACTIVE_COMPETITION == WC_CODE:
+        return False
+    return True
 
 BOT_PREFIX = "บอตเว้ย"
 WAKE_WORDS = ["บอตเว้ย"]

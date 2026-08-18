@@ -51,9 +51,12 @@ def broadcast(msg: Union[str, FlexDict, list[Union[str, FlexDict]]]) -> Broadcas
         futures.append(broadcast_executor.submit(_send, gid))
         
     success_count = 0
-    for future in as_completed(futures):
-        if future.result():
-            success_count += 1
+    for future in as_completed(futures, timeout=30):
+        try:
+            if future.result():
+                success_count += 1
+        except Exception as e:
+            logger.error({"event": "push_future_exception", "error": str(e)})
             
     if success_count == len(groups):
         return BroadcastResult.SUCCESS
@@ -68,10 +71,16 @@ def get_remaining_quota_text() -> str:
     try:
         with ApiClient(line_config) as client:
             api = MessagingApi(client)
-            res = api.get_message_quota_consumption()
-            usage = res.total_usage
-            remaining = max(0, 200 - usage)
-            return f"โควต้าคงเหลือ: {remaining}/200"
+            # Fetch both limit and consumption in one context to avoid opening two clients
+            quota_res = api.get_message_quota()
+            consumption_res = api.get_message_quota_consumption()
+            usage = consumption_res.total_usage
+            # quota_res.value is None when the plan has no fixed limit (e.g. paid plans)
+            limit = quota_res.value if quota_res.value is not None else "∞"
+            if isinstance(limit, int):
+                remaining = max(0, limit - usage)
+                return f"โควต้าคงเหลือ: {remaining}/{limit}"
+            return f"โควต้าที่ใช้ไป: {usage} (ไม่จำกัด)"
     except Exception as e:
         logger.error({"event": "get_quota_failed", "error": str(e)})
         return "โควต้าคงเหลือ: ไม่ทราบ"

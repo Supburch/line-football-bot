@@ -12,21 +12,26 @@ from app.utils.logger import logger
 
 class FootballService:
     BASE_URL = "https://api.football-data.org/v4/"
-    
-    _state_lock      = Lock()
-    _last_call_time  = 0.0
-    _block_until     = 0.0
-    _fail_count      = 0
-    _requests_left   = 10      # free tier limit per minute
-    MIN_INTERVAL     = 6.5
-    FAIL_THRESHOLD   = 3
-    COOLDOWN_429     = 900
-    COOLDOWN_FAIL    = 300
+
+    # Constants (immutable — safe as class attrs)
+    MIN_INTERVAL   = 6.5
+    FAIL_THRESHOLD = 3
+    COOLDOWN_429   = 900
+    COOLDOWN_FAIL  = 300
 
     def __init__(self, api_key: str):
         self.api_key = api_key
+
+        # Single lock protecting both cache and rate-limit state
+        self._lock = Lock()
+
+        # Rate-limit mutable state (instance-level for correct encapsulation)
+        self._last_call_time = 0.0
+        self._block_until    = 0.0
+        self._fail_count     = 0
+        self._requests_left  = 10  # free tier limit per minute
+
         self.cache = TTLCache(maxsize=100, ttl=3600)
-        self.lock = Lock()
 
         session = requests.Session()
         retry = Retry(
@@ -44,26 +49,29 @@ class FootballService:
         self.session = session
 
     def _wait_for_rate_limit(self):
-        with self._state_lock:
+        # Calculate gap while holding the lock, then sleep OUTSIDE the lock
+        # to avoid blocking other threads (e.g. _record_429, _is_blocked) during sleep.
+        with self._lock:
             now    = time.time()
             jitter = random.uniform(0.5, 2.5)
             gap    = (self.MIN_INTERVAL + jitter) - (now - self._last_call_time)
-            if gap > 0:
-                time.sleep(gap)
+        if gap > 0:
+            time.sleep(gap)
+        with self._lock:
             self._last_call_time = time.time()
 
     def _is_blocked(self) -> bool:
-        with self._state_lock:
+        with self._lock:
             return time.time() < self._block_until
 
     def _record_429(self):
-        with self._state_lock:
+        with self._lock:
             self._block_until = time.time() + self.COOLDOWN_429
             self._fail_count  = 0
             logger.warning(f"⛔ 429 received — pausing {self.COOLDOWN_429}s")
 
     def _record_failure(self):
-        with self._state_lock:
+        with self._lock:
             self._fail_count += 1
             if self._fail_count >= self.FAIL_THRESHOLD:
                 self._block_until = time.time() + self.COOLDOWN_FAIL
@@ -71,18 +79,18 @@ class FootballService:
                 logger.warning(f"⛔ {self.FAIL_THRESHOLD} failures — pausing {self.COOLDOWN_FAIL}s")
 
     def _record_success(self, response: requests.Response):
-        with self._state_lock:
+        with self._lock:
             self._fail_count = 0
             remaining = response.headers.get("X-Requests-Available-Minute")
             if remaining is not None:
                 self._requests_left = int(remaining)
                 if self._requests_left <= 2:
-                    self._last_call_time = time.time() + 30 
+                    self._last_call_time = time.time() + 30
 
     def fetch(self, endpoint: str, ttl: int = 60) -> Optional[Any]:
         cache_key = endpoint
         if ttl > 0:
-            with self.lock:
+            with self._lock:
                 if cache_key in self.cache:
                     return self.cache[cache_key]
 
@@ -109,8 +117,8 @@ class FootballService:
             data = res.json()
 
             if ttl > 0:
-                with self.lock:
-                    self.cache.__setitem__(cache_key, data)
+                with self._lock:
+                    self.cache[cache_key] = data
 
             return data
 

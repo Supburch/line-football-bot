@@ -6,7 +6,7 @@ from app.services.line_service import broadcast, BroadcastResult
 from app.repositories.supabase_client import get_sent_event, commit_match_state, get_match_score, mark_sent_event
 from app.utils.helpers import is_watched_match, first_not_none
 from app.flex.flex_builders import build_goal_flex, build_var_flex, build_penalty_shootout_flex, build_red_card_flex
-from app.utils.constants import EPL_CODE, WC_CODE, ACTIVE_COMPETITION, CLEANUP_MATCH_STATUSES, LIVE_SCORE_WC_DISABLED
+from app.utils.constants import EPL_CODE, WC_CODE, ACTIVE_COMPETITION, CLEANUP_MATCH_STATUSES, is_live_score_enabled
 from app.utils.logger import logger
 from app.services.match_state_manager import MatchStateManager
 
@@ -60,7 +60,7 @@ def _monitor_goals_inner(live_matches: list = None):
         state_manager.log_health_report()
 
         # WC 26 Temporary Disable: ปิดการแจ้งสกอร์สดช่วง World Cup ชั่วคราว
-        if LIVE_SCORE_WC_DISABLED and ACTIVE_COMPETITION == WC_CODE:
+        if not is_live_score_enabled():
             logger.info("live_score_disabled_wc", extra={"reason": "LIVE_SCORE_WC_DISABLED=True during WC 26"})
             return
         
@@ -314,9 +314,6 @@ def _monitor_goals_inner(live_matches: list = None):
                 continue
 
             # Only reach here for VAR broadcasts
-            flex_msg = flex_msg  # already assigned above
-
-            # BROADCAST FIRST
             result = broadcast(flex_msg)
 
             # ALWAYS commit memory after successful broadcast to prevent duplicates.
