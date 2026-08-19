@@ -11,14 +11,17 @@ def send_dome_fc_morning_greeting():
     try:
         today_date = datetime.datetime.now(Config.TZ).date()
         
-        # We want to send exactly 20 images ending on August 20, 2026.
+        # We want to send exactly 20 images. Extended to Aug 21 for a retry of image 19.
         start_date = datetime.date(2026, 8, 1)
-        end_date = datetime.date(2026, 8, 20)
+        end_date = datetime.date(2026, 8, 21)
         
         if today_date < start_date or today_date > end_date:
             return
             
-        day_index = (today_date - start_date).days # 0 to 19
+        if today_date == datetime.date(2026, 8, 21):
+            day_index = 18 # Retry the 19th image (which failed on Aug 19)
+        else:
+            day_index = (today_date - start_date).days # 0 to 19
         
         today_str = today_date.strftime("%Y-%m-%d")
         greeting_key = f"dome_fc_greeting_{today_str}"
