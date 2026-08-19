@@ -17,7 +17,10 @@ def create_app():
         # Auto-detect BASE_URL from the first real request if not set via ENV
         from app.config import Config
         if not Config.BASE_URL and request.host_url:
-            Config.BASE_URL = request.host_url.rstrip('/')
+            host_url = request.host_url
+            if host_url.startswith("http://") and "localhost" not in host_url and "127.0.0.1" not in host_url:
+                host_url = host_url.replace("http://", "https://", 1)
+            Config.BASE_URL = host_url.rstrip('/')
 
         if hasattr(g, 'start_time'):
             duration = time.time() - g.start_time

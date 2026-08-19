@@ -51,13 +51,16 @@ def broadcast(msg: Union[str, FlexDict, list[Union[str, FlexDict]]]) -> Broadcas
         futures.append(broadcast_executor.submit(_send, gid))
         
     success_count = 0
-    for future in as_completed(futures, timeout=30):
-        try:
-            if future.result():
-                success_count += 1
-        except Exception as e:
-            logger.error({"event": "push_future_exception", "error": str(e)})
-            
+    try:
+        for future in as_completed(futures, timeout=30):
+            try:
+                if future.result():
+                    success_count += 1
+            except Exception as e:
+                logger.error({"event": "push_future_exception", "error": str(e)})
+    except TimeoutError:
+        logger.error({"event": "broadcast_timeout", "message": "Line push message timed out after 30s"})
+        
     if success_count == len(groups):
         return BroadcastResult.SUCCESS
     elif success_count > 0:
