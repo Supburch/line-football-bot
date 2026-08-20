@@ -46,7 +46,13 @@ def send_dome_fc_morning_greeting():
 
         files = sorted([f for f in os.listdir(static_dir) if f.endswith(".jpg")])
 
-        greeting_text = "🌅 สวัสดีตอนเช้าครับ! ⚽"
+        if today_date == _CAMPAIGN_FINAL:
+            greeting_text = (
+                "🌅 สวัสดีตอนเช้าครับ! ⚽\n\n"
+                "⚽🔥 พรีเมียร์ลีกกลับมาแล้ว! เตรียมมันส์ครบทุกแมตช์ เริ่มวันนี้"
+            )
+        else:
+            greeting_text = "🌅 สวัสดีตอนเช้าครับ! ⚽"
 
         if not Config.BASE_URL:
             logger.warning("dome_fc_no_base_url")
