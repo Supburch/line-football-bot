@@ -40,3 +40,20 @@ def register_routes(app):
     @app.route("/ping")
     def ping():
         return "pong", 200
+
+    @app.route("/cron/morning")
+    def cron_morning():
+        """Wake-and-send hook for external schedulers (e.g. cron-job.org).
+
+        Render's free tier sleeps the app when idle, so the in-process 08:00
+        cron can be missed. Point an external scheduler at this URL every
+        morning (around 08:00 Bangkok time) to wake the app and deliver the
+        greeting. Safe to call multiple times: each job de-duplicates via
+        Supabase 'sent_events'.
+        """
+        from app.jobs.countdown import check_world_cup_countdown
+        from app.jobs.dome_fc import send_dome_fc_morning_greeting
+
+        check_world_cup_countdown()
+        send_dome_fc_morning_greeting()
+        return jsonify({"status": "ok"}), 200

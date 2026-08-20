@@ -62,10 +62,20 @@ def send_dome_fc_morning_greeting():
             "previewImageUrl": image_url
         }
         
-        result = broadcast([image_msg, greeting_text])
+        # Send the image first (best-effort); a failure here must not block the text.
+        try:
+            broadcast(image_msg)
+            logger.info("dome_fc_image_sent")
+        except Exception as img_err:
+            logger.error("dome_fc_image_exception", extra={"error": str(img_err)})
+
+        # Send the greeting text independently so the morning message always arrives.
+        result = broadcast(greeting_text)
         if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
             mark_sent_event(greeting_key)
             logger.info("dome_fc_greeting_sent", extra={"day": day_index + 1})
+        else:
+            logger.warning("dome_fc_greeting_broadcast_failed")
             
     except Exception as e:
         logger.error("dome_fc_greeting_exception", extra={"error": str(e)})

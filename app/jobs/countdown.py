@@ -1,4 +1,3 @@
-import random
 from datetime import datetime
 from app.config import Config
 from app.utils.constants import WORLD_CUP_START, STAGE_TRANSLATION, TERMINAL_MATCH_STATUSES
@@ -111,7 +110,7 @@ def check_world_cup_countdown():
                 # API failed (rate limit / network error) — send fallback greeting
                 logger.warning("wc_morning_api_failed_fallback")
                 free_tv_section = format_free_tv_section(today_date)
-                quote = random.choice(FOOTBALL_GREETINGS)
+                quote = get_random_greeting()
                 fallback_text = (
                     f"🌅 สวัสดีตอนเช้าครับแฟนบอลโลก! 🏆\n\n"
                     f"💬 \"{quote}\"\n\n"
