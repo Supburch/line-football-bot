@@ -2,6 +2,16 @@
 
 บันทึกการอัปเดตของ Line Football Bot — เรียงจากล่าสุดไปเก่า
 
+## 2026-08-21 — ส่งภาพ Dome FC แบบรายภาพ (self-healing) + กัน cleanup ลบ key
+
+### เปลี่ยนแปลง
+- ปรับ `app/jobs/dome_fc.py` ให้ติดตามการส่งแบบ **รายภาพ** (`dome_fc_image_<index>`) แทนรายวัน (`dome_fc_greeting_<date>`) — ภาพไหนยังไม่ส่งจะถูกตามส่งในรันถัดไปอัตโนมัติ (self-healing)
+- ขยายวันสุดท้ายแคมเปญเป็น **23 ส.ค.** (+2 วัน grace สำหรับ catch-up)
+
+### แก้ไข
+- แก้ `cleanup_sent_events_db()` ใน `app/repositories/supabase_client.py` ไม่ให้ลบ key ที่ขึ้นต้นด้วย `dome_fc_image_%` (เดิม cleanup ทุก 24 ชม. ลบ key เหล่านี้ ทำให้ภาพถูกส่งซ้ำทั้งหมด)
+
+
 ## 2026-08-20 — แคมเปญ Dome FC ปิดฉาก (วันสุดท้าย 21 ส.ค.)
 
 ### เพิ่ม

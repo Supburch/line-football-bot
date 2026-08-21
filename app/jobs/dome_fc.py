@@ -8,35 +8,25 @@ from app.utils.logger import logger
 
 # Dome FC morning campaign runs Aug 1-21, 2026.
 _CAMPAIGN_START = datetime.date(2026, 8, 1)
-_CAMPAIGN_FINAL = datetime.date(2026, 8, 21)  # Last day of the campaign.
-
-
-def _day_indices_for(today_date):
-    """Return the 0-based image indices to send for the given date.
-
-    Normal days send one image (day 1..20). The final day sends the last two
-    images (19 and 20) together to close out the campaign.
-    """
-    if today_date < _CAMPAIGN_START or today_date > _CAMPAIGN_FINAL:
-        return []
-    if today_date == _CAMPAIGN_FINAL:
-        return [18, 19]
-    return [(today_date - _CAMPAIGN_START).days]
+_CAMPAIGN_FINAL = datetime.date(2026, 8, 23)  # +2 grace days for catch-up.
 
 
 def send_dome_fc_morning_greeting():
-    """Sends a morning greeting with Dome FC images (Aug 1-21, 2026)."""
+    """Sends a morning greeting with Dome FC images (Aug 1-21, 2026, + grace days).
+
+    Unlike the old date-indexed version, this tracks completion per IMAGE
+    (dome_fc_image_<index> in sent_events), not per calendar day. That means:
+    - If a day's job never runs (Render asleep, deploy broke, cron missed),
+      the missing image(s) are simply still "pending" and get sent on the
+      next run automatically — no image is ever silently skipped forever.
+    - A day is only "done" once every image up to today has actually been
+      confirmed sent via LINE (checked via BroadcastResult), not just
+      because the greeting text went through.
+    """
     try:
         today_date = datetime.datetime.now(Config.TZ).date()
-        today_str = today_date.strftime("%Y-%m-%d")
-        greeting_key = f"dome_fc_greeting_{today_str}"
 
-        if get_sent_event(greeting_key):
-            logger.info("dome_fc_already_sent_today", extra={"date": today_str})
-            return
-
-        day_indices = _day_indices_for(today_date)
-        if not day_indices:
+        if today_date < _CAMPAIGN_START or today_date > _CAMPAIGN_FINAL:
             return
 
         static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "dome_fc")
@@ -45,27 +35,30 @@ def send_dome_fc_morning_greeting():
             return
 
         files = sorted([f for f in os.listdir(static_dir) if f.endswith(".jpg")])
-
-        if today_date == _CAMPAIGN_FINAL:
-            greeting_text = (
-                "🌅 สวัสดีตอนเช้าครับ! ⚽\n\n"
-                "⚽🔥 พรีเมียร์ลีกกลับมาแล้ว! เตรียมมันส์ครบทุกแมตช์ เริ่มวันนี้"
-            )
-        else:
-            greeting_text = "🌅 สวัสดีตอนเช้าครับ! ⚽"
+        if not files:
+            logger.warning("dome_fc_no_images_found")
+            return
 
         if not Config.BASE_URL:
             logger.warning("dome_fc_no_base_url")
-            result = broadcast(greeting_text)
-            if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
-                mark_sent_event(greeting_key)
             return
 
-        for day_index in day_indices:
-            if day_index >= len(files):
-                logger.warning("dome_fc_not_enough_images", extra={"day": day_index + 1})
-                continue
+        # Every image whose index has elapsed (today >= that day) and is not
+        # yet confirmed sent gets picked up here, regardless of which day
+        # it "should" have gone out on. This is what makes it self-healing.
+        elapsed_days = (today_date - _CAMPAIGN_START).days + 1  # inclusive of today
+        max_index = min(elapsed_days, len(files))
+        pending = [
+            i for i in range(max_index)
+            if not get_sent_event(f"dome_fc_image_{i}")
+        ]
 
+        if not pending:
+            logger.info("dome_fc_all_images_sent")
+            return
+
+        sent_any = False
+        for day_index in pending:
             image_name = files[day_index]
             encoded_image_name = urllib.parse.quote(image_name)
             image_url = f"{Config.BASE_URL}/static/dome_fc/{encoded_image_name}"
@@ -75,20 +68,31 @@ def send_dome_fc_morning_greeting():
                 "previewImageUrl": image_url,
             }
 
-            # Send each image best-effort; a failure must not block the text.
-            try:
-                broadcast(image_msg)
+            result = broadcast(image_msg)
+            if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
+                mark_sent_event(f"dome_fc_image_{day_index}")
+                sent_any = True
                 logger.info("dome_fc_image_sent", extra={"day": day_index + 1})
-            except Exception as img_err:
-                logger.error("dome_fc_image_exception", extra={"error": str(img_err)})
+            else:
+                # Do NOT mark as sent — next run will retry this exact image.
+                logger.error(
+                    "dome_fc_image_failed",
+                    extra={"day": day_index + 1, "result": str(result)},
+                )
 
-        # Send the greeting text once so the morning message always arrives.
-        result = broadcast(greeting_text)
-        if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
-            mark_sent_event(greeting_key)
-            logger.info("dome_fc_greeting_sent", extra={"days": [d + 1 for d in day_indices]})
+        # Greeting text is independent of image success/failure, and is
+        # safe to send every run (it's just a friendly caption, not
+        # something that needs strict once-per-day dedup anymore).
+        if today_date >= _CAMPAIGN_START + datetime.timedelta(days=len(files) - 1):
+            greeting_text = (
+                "🌅 สวัสดีตอนเช้าครับ! ⚽\n\n"
+                "⚽🔥 พรีเมียร์ลีกกลับมาแล้ว! เตรียมมันส์ครบทุกแมตช์ เริ่มวันนี้"
+            )
         else:
-            logger.warning("dome_fc_greeting_broadcast_failed")
+            greeting_text = "🌅 สวัสดีตอนเช้าครับ! ⚽"
+
+        if sent_any or not pending:
+            broadcast(greeting_text)
 
     except Exception as e:
         logger.error("dome_fc_greeting_exception", extra={"error": str(e)})

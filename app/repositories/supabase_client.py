@@ -84,7 +84,12 @@ def commit_match_state(match_id: str, event_key: str, home_score: int, away_scor
 def cleanup_sent_events_db():
     if not supabase: return
     cutoff = (datetime.now(Config.TZ) - timedelta(hours=24)).isoformat()
-    execute_with_retry(supabase.table("sent_events").delete().lt("created_at", cutoff))
+    execute_with_retry(
+        supabase.table("sent_events")
+        .delete()
+        .lt("created_at", cutoff)
+        .not_.like("event_key", "dome_fc_image_%")
+    )
 
 def get_match_score(match_id: str):
     """Retrieve the last committed score for a match from Supabase.
