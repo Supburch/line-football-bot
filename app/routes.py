@@ -25,8 +25,10 @@ def register_routes(app):
         
         status = "healthy"
         try:
-            # Deep health check: ensure DB connectivity
-            supabase.table("users").select("id").limit(1).execute()
+            # Deep health check: ensure DB connectivity.
+            # Use a table this app actually owns (football_groups) rather than
+            # a generic 'users' table that may not exist in this project's schema.
+            supabase.table("football_groups").select("group_id").limit(1).execute()
         except Exception as e:
             logger.error({"event": "health_check_failed", "error": str(e)})
             return jsonify({
