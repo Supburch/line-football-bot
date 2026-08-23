@@ -325,6 +325,23 @@ def make_group_box(group_data) -> dict:
 
 def build_standings_flex(standings_groups) -> FlexDict:
     is_group_based = any(s.get("group") is not None for s in standings_groups)
+
+    # Resolve the active competition ONCE so the group-based branch below
+    # never hardcodes "WORLD CUP". ACTIVE_COMPETITION switches UCL -> WC -> EPL by date.
+    is_wc = ACTIVE_COMPETITION == WC_CODE
+    is_ucl = ACTIVE_COMPETITION == UCL_CODE
+    if is_wc:
+        header_color = "#7F0F25"
+        header_text_color = "#D4AF37"
+        comp_label = "🏆 WORLD CUP"
+    elif is_ucl:
+        header_color = "#0B1E36"
+        header_text_color = "#D4AF37"
+        comp_label = "⭐ UEFA CHAMPIONS LEAGUE"
+    else:
+        header_color = "#3D195B"
+        header_text_color = "#FFFFFF"
+        comp_label = "⚽ PREMIER LEAGUE"
     
     if is_group_based:
         total_standings = [s for s in standings_groups if s.get("type") == "TOTAL"]
@@ -341,14 +358,14 @@ def build_standings_flex(standings_groups) -> FlexDict:
                 pair_names.append(group_clean)
                 contents.append(make_group_box(s))
                 
-            header_title = "🏆 WORLD CUP - " + " & ".join(pair_names)
+            header_title = f"{comp_label} - " + " & ".join(pair_names)
             
             bubbles.append({
                 "type": "bubble", "size": "mega",
                 "header": {
-                    "type": "box", "layout": "vertical", "backgroundColor": "#7F0F25",
+                    "type": "box", "layout": "vertical", "backgroundColor": header_color,
                     "contents": [
-                        {"type": "text", "text": header_title, "weight": "bold", "color": "#D4AF37", "size": "sm"},
+                        {"type": "text", "text": header_title, "weight": "bold", "color": header_text_color, "size": "sm"},
                     ]
                 },
                 "body": {
@@ -420,16 +437,11 @@ def build_standings_flex(standings_groups) -> FlexDict:
             ]
         })
 
-    is_wc = ACTIVE_COMPETITION == WC_CODE
-    is_ucl = ACTIVE_COMPETITION == UCL_CODE
     if is_wc:
-        header_color = "#7F0F25"
         header_title = "FIFA WORLD CUP"
     elif is_ucl:
-        header_color = "#0B1E36"
         header_title = "UEFA CHAMPIONS LEAGUE"
     else:
-        header_color = "#3D195B"
         header_title = "PREMIER LEAGUE"
 
     return {
