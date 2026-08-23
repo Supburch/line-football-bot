@@ -324,10 +324,8 @@ def make_group_box(group_data) -> dict:
     return {"type": "box", "layout": "vertical", "contents": rows}
 
 def build_standings_flex(standings_groups) -> FlexDict:
-    is_group_based = any(s.get("group") is not None for s in standings_groups)
-
-    # Resolve the active competition ONCE so the group-based branch below
-    # never hardcodes "WORLD CUP". ACTIVE_COMPETITION switches UCL -> WC -> EPL by date.
+    # Resolve the active competition ONCE so every branch shares the same
+    # labels/colors. ACTIVE_COMPETITION switches UCL -> WC -> EPL by date.
     is_wc = ACTIVE_COMPETITION == WC_CODE
     is_ucl = ACTIVE_COMPETITION == UCL_CODE
     if is_wc:
@@ -343,6 +341,11 @@ def build_standings_flex(standings_groups) -> FlexDict:
         header_text_color = "#FFFFFF"
         comp_label = "⚽ PREMIER LEAGUE"
     
+    # Group carousels are only meaningful for the World Cup. League (EPL) and
+    # UCL league-phase responses may still carry a "group" field (even an empty
+    # string), which previously mis-routed them into the group layout.
+    is_group_based = is_wc and any(s.get("group") is not None for s in standings_groups)
+
     if is_group_based:
         total_standings = [s for s in standings_groups if s.get("type") == "TOTAL"]
         total_standings.sort(key=lambda s: s.get("group", ""))
@@ -391,79 +394,93 @@ def build_standings_flex(standings_groups) -> FlexDict:
     total = next((s for s in standings_groups if s.get("type") == "TOTAL"), standings_groups[0])
     table = total.get("table", [])
 
-    rows = [
-        {
-            "type": "box", "layout": "horizontal",
-            "contents": [
-                {"type": "text", "text": "#",    "weight": "bold", "size": "xs", "flex": 1, "align": "center"},
-                {"type": "text", "text": "Team", "weight": "bold", "size": "xs", "flex": 4},
-                {"type": "text", "text": "P",    "weight": "bold", "size": "xs", "align": "center", "flex": 1},
-                {"type": "text", "text": "GD",   "weight": "bold", "size": "xs", "align": "center", "flex": 1},
-                {"type": "text", "text": "Pts",  "weight": "bold", "size": "xs", "align": "end", "flex": 2, "margin": "md"},
-            ]
-        },
-        {"type": "separator", "margin": "sm"},
-    ]
+    # LINE flex bubbles clip content that grows too tall, so split a long
+    # league table (e.g. the 20-team Premier League) into chunks of 10 rows
+    # across a carousel — the same 10-item cap used by fixtures and scorers.
+    # This keeps every team visible instead of cutting off the last rows.
+    CHUNK_SIZE = 10
+    chunks = [table[i:i + CHUNK_SIZE] for i in range(0, len(table), CHUNK_SIZE)] or [[]]
 
-    for t in table:
-        pos    = t.get("position", "-")
-        name   = t.get("team", {}).get("name", "Unknown")
-        played = t.get("playedGames", 0)
-        gd     = t.get("goalDifference", 0)
-        pts    = t.get("points", 0)
-        logo   = t.get("team", {}).get("crest", "")
+    bubbles = []
+    for idx, chunk in enumerate(chunks):
+        rows = [
+            {
+                "type": "box", "layout": "horizontal",
+                "contents": [
+                    {"type": "text", "text": "#",    "weight": "bold", "size": "xs", "flex": 1, "align": "center"},
+                    {"type": "text", "text": "Team", "weight": "bold", "size": "xs", "flex": 4},
+                    {"type": "text", "text": "P",    "weight": "bold", "size": "xs", "align": "center", "flex": 1},
+                    {"type": "text", "text": "GD",   "weight": "bold", "size": "xs", "align": "center", "flex": 1},
+                    {"type": "text", "text": "Pts",  "weight": "bold", "size": "xs", "align": "end", "flex": 2, "margin": "md"},
+                ]
+            },
+            {"type": "separator", "margin": "sm"},
+        ]
 
-        gd_text  = f"+{gd}" if gd > 0 else str(gd)
-        is_fav   = is_exact_team_match(name, WATCHED_TEAMS)
-        bg_color = "#F0F9FF" if is_fav else "#FFFFFF"
+        for t in chunk:
+            pos    = t.get("position", "-")
+            name   = t.get("team", {}).get("name", "Unknown")
+            played = t.get("playedGames", 0)
+            gd     = t.get("goalDifference", 0)
+            pts    = t.get("points", 0)
+            logo   = t.get("team", {}).get("crest", "")
 
-        rows.append({
-            "type": "box", "layout": "horizontal", "margin": "xs",
-            "alignItems": "center", "backgroundColor": bg_color,
-            "cornerRadius": "sm", "paddingAll": "xs",
-            "contents": [
-                {"type": "text", "text": str(pos), "size": "xs", "flex": 1, "align": "center", "color": "#888888"},
-                {
-                    "type": "box", "layout": "horizontal", "flex": 4, "alignItems": "center",
-                    "contents": [
-                        {"type": "image", "url": safe_url(logo, name), "size": "xxs", "flex": 0},
-                        {"type": "text", "text": name, "size": "xs", "margin": "sm", "flex": 1,
-                         "weight": "bold" if is_fav else "regular", "wrap": True},
-                    ]
-                },
-                {"type": "text", "text": str(played), "size": "xs", "align": "center", "flex": 1},
-                {"type": "text", "text": gd_text,     "size": "xs", "align": "center", "flex": 1, "color": "#666666"},
-                {"type": "text", "text": str(pts),    "size": "xs", "align": "end", "weight": "bold", "flex": 2, "margin": "md"},
-            ]
+            gd_text  = f"+{gd}" if gd > 0 else str(gd)
+            is_fav   = is_exact_team_match(name, WATCHED_TEAMS)
+            bg_color = "#F0F9FF" if is_fav else "#FFFFFF"
+
+            rows.append({
+                "type": "box", "layout": "horizontal", "margin": "xs",
+                "alignItems": "center", "backgroundColor": bg_color,
+                "cornerRadius": "sm", "paddingAll": "xs",
+                "contents": [
+                    {"type": "text", "text": str(pos), "size": "xs", "flex": 1, "align": "center", "color": "#888888"},
+                    {
+                        "type": "box", "layout": "horizontal", "flex": 4, "alignItems": "center",
+                        "contents": [
+                            {"type": "image", "url": safe_url(logo, name), "size": "xxs", "flex": 0},
+                            {"type": "text", "text": name, "size": "xs", "margin": "sm", "flex": 1,
+                             "weight": "bold" if is_fav else "regular", "wrap": True},
+                        ]
+                    },
+                    {"type": "text", "text": str(played), "size": "xs", "align": "center", "flex": 1},
+                    {"type": "text", "text": gd_text,     "size": "xs", "align": "center", "flex": 1, "color": "#666666"},
+                    {"type": "text", "text": str(pts),    "size": "xs", "align": "end", "weight": "bold", "flex": 2, "margin": "md"},
+                ]
+            })
+
+        # Show the rank range in the header when the table spans multiple bubbles.
+        if len(chunks) > 1:
+            start = idx * CHUNK_SIZE + 1
+            end   = idx * CHUNK_SIZE + len(chunk)
+            header_title = f"{comp_label} - อันดับ {start}-{end}"
+        else:
+            header_title = comp_label
+
+        bubbles.append({
+            "type": "bubble", "size": "mega",
+            "header": {
+                "type": "box", "layout": "vertical", "backgroundColor": header_color,
+                "contents": [
+                    {"type": "text", "text": header_title, "weight": "bold", "color": header_text_color, "size": "sm"},
+                    {"type": "text", "text": "ตารางคะแนน",  "weight": "bold", "color": header_text_color, "size": "xl"},
+                ]
+            },
+            "body": {"type": "box", "layout": "vertical", "paddingAll": "md", "contents": rows},
+            "footer": {
+                "type": "box", "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": f"Updated: {datetime.now(Config.TZ).strftime('%H:%M')}",
+                     "size": "xxs", "align": "center", "color": "#aaaaaa"},
+                    {"type": "text", "text": get_remaining_quota_text(),
+                     "size": "xxs", "align": "center", "color": "#aaaaaa", "margin": "xs"}
+                ]
+            }
         })
 
-    if is_wc:
-        header_title = "FIFA WORLD CUP"
-    elif is_ucl:
-        header_title = "UEFA CHAMPIONS LEAGUE"
-    else:
-        header_title = "PREMIER LEAGUE"
-
-    return {
-        "type": "bubble", "size": "mega",
-        "header": {
-            "type": "box", "layout": "vertical", "backgroundColor": header_color,
-            "contents": [
-                {"type": "text", "text": header_title, "weight": "bold", "color": "#ffffff", "size": "sm"},
-                {"type": "text", "text": "Standings",  "weight": "bold", "color": "#ffffff", "size": "xl"},
-            ]
-        },
-        "body": {"type": "box", "layout": "vertical", "paddingAll": "md", "contents": rows},
-        "footer": {
-            "type": "box", "layout": "vertical",
-            "contents": [
-                {"type": "text", "text": f"Updated: {datetime.now(Config.TZ).strftime('%H:%M')}",
-                 "size": "xxs", "align": "center", "color": "#aaaaaa"},
-                {"type": "text", "text": get_remaining_quota_text(),
-                 "size": "xxs", "align": "center", "color": "#aaaaaa", "margin": "xs"}
-            ]
-        }
-    }
+    if len(bubbles) == 1:
+        return bubbles[0]
+    return {"type": "carousel", "contents": bubbles}
 
 def build_upcoming_flex(matches) -> FlexDict:
     rows = []
