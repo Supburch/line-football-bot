@@ -44,21 +44,11 @@ def run_smart_schedule(scheduler):
         except Exception:
             pass
 
-    bkk_now = datetime.now(Config.TZ)
-    # Aligned with DynamicCompetition cutoff in constants.py (wc_cutoff = 2026-07-20)
-    wc_end_buffer = Config.TZ.localize(datetime(2026, 7, 20, 0, 0, 0))
-    is_high_speed_allowed = bkk_now < wc_end_buffer
-
     if in_window:
-        if is_high_speed_allowed:
-            if SchedulerState.CURRENT_POLL_MODE != "high_speed":
-                SchedulerState.CURRENT_POLL_MODE = "high_speed"
-                # Safe High-speed polling: 45 seconds (1.33 requests/min), far below the 10 requests/min rate limit!
-                scheduler.reschedule_job("goal_monitor", trigger="interval", seconds=45)
-        else:
-            if SchedulerState.CURRENT_POLL_MODE != "fast":
-                SchedulerState.CURRENT_POLL_MODE = "fast"
-                scheduler.reschedule_job("goal_monitor", trigger="interval", minutes=_jitter(3, 2))
+        if SchedulerState.CURRENT_POLL_MODE != "high_speed":
+            SchedulerState.CURRENT_POLL_MODE = "high_speed"
+            # Safe High-speed polling: 45 seconds (1.33 requests/min), far below the 10 requests/min rate limit!
+            scheduler.reschedule_job("goal_monitor", trigger="interval", seconds=45)
         monitor_goals(live_matches=live_matches if live_matches else None)
     else:
         if SchedulerState.CURRENT_POLL_MODE != "slow":
