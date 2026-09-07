@@ -482,10 +482,11 @@ def build_standings_flex(standings_groups) -> FlexDict:
         return bubbles[0]
     return {"type": "carousel", "contents": bubbles}
 
-def build_upcoming_flex(matches) -> FlexDict:
+def build_upcoming_flex(matches, team_filter: str = None) -> FlexDict:
     rows = []
     has_free = False
-    for m in matches[:10]:
+    limit = 5 if team_filter else 10
+    for m in matches[:limit]:
         home = m["homeTeam"]["name"]
         away = m["awayTeam"]["name"]
         utc_str = m.get("utcDate", "")
@@ -545,6 +546,9 @@ def build_upcoming_flex(matches) -> FlexDict:
     else:
         header_color = "#38003c"
         header_title = "📅 EPL FIXTURES"
+
+    if team_filter:
+        header_title = f"{header_title} ({team_filter.capitalize()})"
 
     # Footer with free TV legend if any matches are free
     footer_contents = []

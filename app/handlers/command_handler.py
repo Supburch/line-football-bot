@@ -25,6 +25,7 @@ def build_help_text() -> str:
         f"🔴 บอตเว้ย สด\n"
         f"🏆 บอตเว้ย ตาราง\n"
         f"📅 บอตเว้ย โปรแกรม\n"
+        f"🦅 บอตเว้ย โปรแกรม นิวคาสเซิล (5 นัดถัดไป)\n"
         f"🥾 บอตเว้ย ดาวซัลโว\n\n"
         f"🔔 แจ้งเตือนอัตโนมัติ{notification_info}\n"
         f"   🔄 VAR (ประตูถูกยกเลิก)\n"
@@ -89,13 +90,24 @@ def build_standings() -> Any:
     if not standings_groups: return "📭 ยังไม่มีข้อมูลตารางคะแนน"
     return build_standings_flex(standings_groups)
 
-def build_upcoming() -> Any:
+def build_upcoming(team_filter: str = None) -> Any:
     data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/matches?status=SCHEDULED", ttl=300)
     if not isinstance(data, dict): return "📭 ตอนนี้ไม่มีโปรแกรมการแข่งขัน"
     matches = data.get("matches", [])
     if not matches: return "📭 ตอนนี้ไม่มีโปรแกรมการแข่งขัน"
+    
+    if team_filter:
+        filtered = []
+        for m in matches:
+            home = m["homeTeam"]["name"].lower()
+            away = m["awayTeam"]["name"].lower()
+            if team_filter in home or team_filter in away:
+                filtered.append(m)
+        matches = filtered
+        if not matches: return f"📭 ตอนนี้ไม่มีโปรแกรมการแข่งขันสำหรับ {team_filter.capitalize()}"
+
     matches.sort(key=lambda m: m.get("utcDate", ""))
-    return build_upcoming_flex(matches)
+    return build_upcoming_flex(matches, team_filter=team_filter)
 
 def build_scorers() -> Any:
     data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/scorers", ttl=14400)
@@ -114,7 +126,26 @@ COMMAND_MAP = [
 
 def handle_command(cmd_text: str) -> Any:
     cmd = cmd_text.strip().lower()
+    
+    fixture_keys = ("โปรแกรม", "fixture", "นัดถัดไป")
+    team_aliases = {
+        "newcastle": ["นิวคาสเซิล", "newcastle", "สาลิกา", "นิว"],
+        "liverpool": ["ลิเวอร์พูล", "liverpool", "หงส์"],
+        "arsenal": ["อาร์เซนอล", "arsenal", "ปืน"],
+        "tottenham": ["สเปอร์ส", "spurs", "tottenham", "สเปอร์", "ไก่"]
+    }
+    
+    is_fixture = any(k in cmd for k in fixture_keys)
+    if is_fixture:
+        for eng_team, aliases in team_aliases.items():
+            if any(a in cmd for a in aliases):
+                return build_upcoming(team_filter=eng_team)
+        return build_upcoming()
+
     for keys, func in COMMAND_MAP:
+        if keys == fixture_keys:
+            continue
         if any(k in cmd for k in keys):
             return func()
+
     return build_help_text()
