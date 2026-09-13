@@ -3,6 +3,7 @@ from app.config import Config
 from app.utils.helpers import safe_url, format_minute, is_exact_team_match
 from app.utils.constants import WATCHED_TEAMS, WATCHED_COUNTRIES, EPL_LOGO, WC_LOGO, WC_CODE, UCL_LOGO, UCL_CODE, ACTIVE_COMPETITION, COUNTDOWN_COVER, STAGE_TRANSLATION
 from app.utils.aliases import FlexDict
+from app.utils.teams import get_team_name
 from app.utils.free_tv_schedule import is_free_tv_match
 from app.services.line_service import get_remaining_quota_text
 
@@ -548,7 +549,7 @@ def build_upcoming_flex(matches, team_filter: str = None) -> FlexDict:
         header_title = "📅 EPL FIXTURES"
 
     if team_filter:
-        header_title = f"{header_title} ({team_filter.capitalize()})"
+        header_title = f"{header_title} ({get_team_name(team_filter)})"
 
     # Footer with free TV legend if any matches are free
     footer_contents = []

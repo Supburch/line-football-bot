@@ -5,6 +5,7 @@ from app.services.football_service import svc
 from app.flex.flex_builders import build_standings_flex, build_upcoming_flex, build_scorers_flex
 from app.utils.constants import ACTIVE_COMPETITION, WC_CODE, UCL_CODE
 from app.utils.helpers import format_minute, first_not_none
+from app.utils.teams import TEAM_ALIASES, resolve_team
 
 def build_help_text() -> str:
     if ACTIVE_COMPETITION == WC_CODE:
@@ -25,7 +26,7 @@ def build_help_text() -> str:
         f"🔴 บอตเว้ย สด\n"
         f"🏆 บอตเว้ย ตาราง\n"
         f"📅 บอตเว้ย โปรแกรม\n"
-        f"🦅 บอตเว้ย โปรแกรม นิวคาสเซิล (5 นัดถัดไป)\n"
+        f"🦅 บอตเว้ย โปรแกรม <ทีมโปรด> เช่น ไก่/หงส์/ปืน/สาลิกา (5 นัดถัดไป)\n"
         f"🥾 บอตเว้ย ดาวซัลโว\n\n"
         f"🔔 แจ้งเตือนอัตโนมัติ{notification_info}\n"
         f"   🔄 VAR (ประตูถูกยกเลิก)\n"
@@ -96,15 +97,18 @@ def build_upcoming(team_filter: str = None) -> Any:
     matches = data.get("matches", [])
     if not matches: return "📭 ตอนนี้ไม่มีโปรแกรมการแข่งขัน"
     
-    if team_filter:
+    team_info = TEAM_ALIASES.get(team_filter) if team_filter else None
+    if team_info:
+        match_key = team_info["match"]
         filtered = []
         for m in matches:
             home = m["homeTeam"]["name"].lower()
             away = m["awayTeam"]["name"].lower()
-            if team_filter in home or team_filter in away:
+            if match_key in home or match_key in away:
                 filtered.append(m)
         matches = filtered
-        if not matches: return f"📭 ตอนนี้ไม่มีโปรแกรมการแข่งขันสำหรับ {team_filter.capitalize()}"
+        if not matches:
+            return f"📭 ตอนนี้ไม่มีโปรแกรมการแข่งขันสำหรับ {team_info['name_th']}"
 
     matches.sort(key=lambda m: m.get("utcDate", ""))
     return build_upcoming_flex(matches, team_filter=team_filter)
@@ -116,35 +120,25 @@ def build_scorers() -> Any:
     if not scorers: return "📭 ยังไม่มีข้อมูลดาวซัลโว"
     return build_scorers_flex(scorers)
 
+FIXTURE_KEYS = ("โปรแกรม", "fixture", "นัดถัดไป")
+
 COMMAND_MAP = [
     (("สด", "live"), build_live_scores),
     (("ตาราง", "table", "standing"), build_standings),
     (("ผล", "ผลบอล", "result"), build_recent_results),
-    (("โปรแกรม", "fixture", "นัดถัดไป"), build_upcoming),
     (("ดาวซัลโว", "scorer", "scorers", "รองเท้าทองคำ"), build_scorers),
 ]
 
 def handle_command(cmd_text: str) -> Any:
     cmd = cmd_text.strip().lower()
-    
-    fixture_keys = ("โปรแกรม", "fixture", "นัดถัดไป")
-    team_aliases = {
-        "newcastle": ["นิวคาสเซิล", "newcastle", "สาลิกา", "นิว"],
-        "liverpool": ["ลิเวอร์พูล", "liverpool", "หงส์"],
-        "arsenal": ["อาร์เซนอล", "arsenal", "ปืน"],
-        "tottenham": ["สเปอร์ส", "spurs", "tottenham", "สเปอร์", "ไก่"]
-    }
-    
-    is_fixture = any(k in cmd for k in fixture_keys)
-    if is_fixture:
-        for eng_team, aliases in team_aliases.items():
-            if any(a in cmd for a in aliases):
-                return build_upcoming(team_filter=eng_team)
-        return build_upcoming()
+
+    # Team-specific fixtures: "โปรแกรม <ทีม>" / "fixture <team>". The team is
+    # resolved from Thai/English/nickname aliases; without a team it falls back
+    # to the general upcoming-fixtures list.
+    if any(k in cmd for k in FIXTURE_KEYS):
+        return build_upcoming(team_filter=resolve_team(cmd))
 
     for keys, func in COMMAND_MAP:
-        if keys == fixture_keys:
-            continue
         if any(k in cmd for k in keys):
             return func()
 
