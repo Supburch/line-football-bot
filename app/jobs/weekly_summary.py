@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta, timezone
-from app.config import Config
 from app.utils.logger import logger
 from app.services.football_service import svc
 from app.services.line_service import broadcast
 from app.repositories.supabase_client import get_sent_event, mark_sent_event
 from app.utils.helpers import is_watched_match
 from app.utils.constants import WATCHED_TEAMS, WATCHED_COUNTRIES, WC_CODE, ACTIVE_COMPETITION
+
 
 def check_weekly_summary():
     now = datetime.now(timezone.utc)
@@ -21,9 +21,11 @@ def check_weekly_summary():
 
     matches = data.get("matches", [])
     comp_code = str(ACTIVE_COMPETITION)
-    watched = [m for m in matches if is_watched_match(
-        m["homeTeam"]["name"], m["awayTeam"]["name"], comp_code=comp_code
-    )]
+    watched = [
+        m
+        for m in matches
+        if is_watched_match(m["homeTeam"]["name"], m["awayTeam"]["name"], comp_code=comp_code)
+    ]
 
     if not watched:
         return

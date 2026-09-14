@@ -115,5 +115,3 @@ def test_handle_command_team_fixture(fetch_mock, _quota_mock):
     res = handle_command("โปรแกรม ไก่")
     assert isinstance(res, dict)
     assert "สเปอร์ส" in res["header"]["contents"][0]["text"]
-
-

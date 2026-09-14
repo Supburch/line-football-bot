@@ -1,6 +1,13 @@
 from linebot.v3.webhook import WebhookHandler
 from linebot.v3.webhooks import MessageEvent, TextMessageContent, JoinEvent
-from linebot.v3.messaging import ApiClient, MessagingApi, ReplyMessageRequest, TextMessage, FlexMessage, FlexContainer
+from linebot.v3.messaging import (
+    ApiClient,
+    MessagingApi,
+    ReplyMessageRequest,
+    TextMessage,
+    FlexMessage,
+    FlexContainer,
+)
 from app.config import Config
 from app.utils.logger import logger
 from app.utils.constants import BOT_PREFIX, WAKE_WORDS
@@ -10,6 +17,7 @@ from app.repositories.supabase_client import db_register_group
 from app.utils.helpers import extract_command, safe_group_id
 
 handler = WebhookHandler(Config.LINE_SECRET)
+
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_msg(event):
@@ -34,19 +42,20 @@ def handle_msg(event):
                 if isinstance(result, dict)
                 else TextMessage(text=result)
             )
-            api.reply_message(ReplyMessageRequest(
-                reply_token=event.reply_token, messages=[msg]
-            ))
+            api.reply_message(ReplyMessageRequest(reply_token=event.reply_token, messages=[msg]))
     except Exception as e:
         logger.error(f"handle_msg error: {e}")
         try:
             with ApiClient(line_config) as client:
-                MessagingApi(client).reply_message(ReplyMessageRequest(
-                    reply_token=event.reply_token,
-                    messages=[TextMessage(text="❌ ขออภัยครับ ระบบขัดข้องชั่วคราว")]
-                ))
+                MessagingApi(client).reply_message(
+                    ReplyMessageRequest(
+                        reply_token=event.reply_token,
+                        messages=[TextMessage(text="❌ ขออภัยครับ ระบบขัดข้องชั่วคราว")],
+                    )
+                )
         except Exception:
             pass
+
 
 @handler.add(JoinEvent)
 def handle_join(event):

@@ -2,6 +2,7 @@ from flask import request, abort, jsonify
 from linebot.v3.exceptions import InvalidSignatureError
 from app.handlers.message_handler import handler
 
+
 def register_routes(app):
     @app.route("/callback", methods=["POST"])
     def callback():
@@ -22,7 +23,7 @@ def register_routes(app):
     def health():
         from app.repositories.supabase_client import supabase
         from app.utils.logger import logger
-        
+
         status = "healthy"
         try:
             # Deep health check: ensure DB connectivity.
@@ -31,12 +32,17 @@ def register_routes(app):
             supabase.table("football_groups").select("group_id").limit(1).execute()
         except Exception as e:
             logger.error({"event": "health_check_failed", "error": str(e)})
-            return jsonify({
-                "status": "unhealthy", 
-                "service": "football-bot", 
-                "error": "Database connection failed"
-            }), 503
-            
+            return (
+                jsonify(
+                    {
+                        "status": "unhealthy",
+                        "service": "football-bot",
+                        "error": "Database connection failed",
+                    }
+                ),
+                503,
+            )
+
         return jsonify({"status": status, "service": "football-bot"}), 200
 
     @app.route("/ping")

@@ -3,26 +3,28 @@ import time
 from typing import Dict, Tuple, Optional
 from app.utils.logger import logger
 
+
 class MatchStateManager:
     """
     Encapsulates all memory state for match monitoring.
     Uses RLock to ensure thread-safety across different workers/threads.
     """
+
     def __init__(self):
         self._lock = threading.RLock()
-        
+
         # fid -> (home_score, away_score)
         self._last_sent_scores: Dict[str, Tuple[int, int]] = {}
-        
+
         # fid -> {"score": (1,0), "scorer": "Salah", "minute": "45"}
         self._last_goal_info: Dict[str, Dict] = {}
-        
+
         # fid -> {"prev": (1,1), "new": (0,1), "ts": timestamp}
         self._pending_var: Dict[str, Dict] = {}
-        
+
         # event_key -> {"retry_count": 0, "next_retry_at": timestamp, "created_at": timestamp}
         self._failed_events: Dict[str, Dict] = {}
-        
+
         # In-flight set: event_keys currently being broadcast (duplicate guard across restarts)
         self._in_flight: set = set()
 
@@ -44,11 +46,7 @@ class MatchStateManager:
             self._last_sent_scores[fid] = (hs, as_)
             self._last_updated_at[fid] = time.time()
             if scorer:
-                self._last_goal_info[fid] = {
-                    "score": (hs, as_),
-                    "scorer": scorer,
-                    "minute": minute
-                }
+                self._last_goal_info[fid] = {"score": (hs, as_), "scorer": scorer, "minute": minute}
             # Once committed, clear any pending VAR for this match
             if fid in self._pending_var:
                 del self._pending_var[fid]
@@ -59,10 +57,12 @@ class MatchStateManager:
             self._pending_var[fid] = {
                 "prev": prev_score,
                 "new": new_score,
-                "created_at": time.time()
+                "created_at": time.time(),
             }
 
-    def check_pending_var(self, fid: str, current_score: Tuple[int, int]) -> Optional[Tuple[int, int]]:
+    def check_pending_var(
+        self, fid: str, current_score: Tuple[int, int]
+    ) -> Optional[Tuple[int, int]]:
         """
         Returns prev_score if VAR is confirmed (score remained low), otherwise None.
         Also cleans up expired TTLs.
@@ -70,14 +70,14 @@ class MatchStateManager:
         with self._lock:
             if fid not in self._pending_var:
                 return None
-            
+
             pending = self._pending_var[fid]
             # TTL expiration (15 minutes)
             if time.time() - pending["created_at"] > 900:
                 logger.warning({"event": "pending_var_expired", "match_id": fid})
                 del self._pending_var[fid]
                 return None
-            
+
             if pending["new"] == current_score:
                 # Confirmed! Score is still low.
                 prev_score = pending["prev"]
@@ -126,16 +126,20 @@ class MatchStateManager:
                 return True
 
             if event_key not in self._failed_events:
-                self._failed_events[event_key] = {"retry_count": 0, "next_retry_at": 0, "created_at": time.time()}
-                
+                self._failed_events[event_key] = {
+                    "retry_count": 0,
+                    "next_retry_at": 0,
+                    "created_at": time.time(),
+                }
+
             state = self._failed_events[event_key]
             state["retry_count"] += 1
-            
+
             if state["retry_count"] >= 3:  # MAX_RETRIES = 3
                 self._failed_events.pop(event_key, None)
                 logger.warning({"event": "event_abandoned_max_retries", "event_key": event_key})
                 return True
-            
+
             # Exponential backoff: 1m, 2m, 4m...
             delay = min(60 * (2 ** (state["retry_count"] - 1)), 1800)
             state["next_retry_at"] = time.time() + delay
@@ -153,7 +157,7 @@ class MatchStateManager:
             self._last_goal_info.pop(fid, None)
             self._pending_var.pop(fid, None)
             self._last_updated_at.pop(fid, None)
-            
+
             # Strict prefix boundary matching for failed events
             expired_events = [
                 key
@@ -162,7 +166,7 @@ class MatchStateManager:
             ]
             for event_key in expired_events:
                 self._failed_events.pop(event_key, None)
-                
+
             # Strict prefix boundary matching for in-flight markers
             expired_in_flight = [
                 key
@@ -171,7 +175,7 @@ class MatchStateManager:
             ]
             for event_key in expired_in_flight:
                 self._in_flight.discard(event_key)
-                
+
             logger.info({"event": "match_state_cleaned", "match_id": fid})
 
     def cleanup_expired_states(self, max_age_seconds: float = 43200):
@@ -182,12 +186,12 @@ class MatchStateManager:
         with self._lock:
             now = time.time()
             expired_fids = []
-            
+
             # Find expired matches (no activity for 12 hours)
             for fid, last_active in list(self._last_updated_at.items()):
                 if now - last_active > max_age_seconds:
                     expired_fids.append(fid)
-                    
+
             # Purge expired matches
             for fid in expired_fids:
                 self._last_sent_scores.pop(fid, None)
@@ -195,14 +199,14 @@ class MatchStateManager:
                 self._pending_var.pop(fid, None)
                 self._last_updated_at.pop(fid, None)
                 logger.info({"event": "match_state_evicted_ttl", "match_id": fid})
-                
+
             # Purge old failed events (older than 12 hours)
             expired_events = []
             for event_key, data in list(self._failed_events.items()):
                 created = data.get("created_at", now)
                 if now - created > max_age_seconds:
                     expired_events.append(event_key)
-                    
+
             for event_key in expired_events:
                 self._failed_events.pop(event_key, None)
                 logger.info({"event": "failed_event_evicted_ttl", "event_key": event_key})
@@ -217,45 +221,39 @@ class MatchStateManager:
             if not force and (now - self._last_health_reported_at < 1800):
                 return
             self._last_health_reported_at = now
-            
+
             active_count = len(self._last_updated_at)
             failed_count = len(self._failed_events)
             inflight_count = len(self._in_flight)
             pending_var_count = len(self._pending_var)
             uptime_hours = round((now - self._start_time) / 3600.0, 2)
-            
+
             # 1. Log Info Health Snapshot
-            logger.info({
-                "event": "state_manager_health",
-                "active_matches": active_count,
-                "failed_events": failed_count,
-                "in_flight": inflight_count,
-                "pending_var": pending_var_count,
-                "uptime_hours": uptime_hours
-            })
-            
+            logger.info(
+                {
+                    "event": "state_manager_health",
+                    "active_matches": active_count,
+                    "failed_events": failed_count,
+                    "in_flight": inflight_count,
+                    "pending_var": pending_var_count,
+                    "uptime_hours": uptime_hours,
+                }
+            )
+
             # 2. Check and log Alert Warnings
             if active_count > 30:
-                logger.warning({
-                    "event": "active_matches_high",
-                    "count": active_count,
-                    "threshold": 30
-                })
+                logger.warning(
+                    {"event": "active_matches_high", "count": active_count, "threshold": 30}
+                )
             if failed_count > 50:
-                logger.warning({
-                    "event": "failed_events_high",
-                    "count": failed_count,
-                    "threshold": 50
-                })
+                logger.warning(
+                    {"event": "failed_events_high", "count": failed_count, "threshold": 50}
+                )
             if inflight_count > 50:
-                logger.warning({
-                    "event": "in_flight_high",
-                    "count": inflight_count,
-                    "threshold": 50
-                })
+                logger.warning(
+                    {"event": "in_flight_high", "count": inflight_count, "threshold": 50}
+                )
             if pending_var_count > 20:
-                logger.warning({
-                    "event": "pending_var_high",
-                    "count": pending_var_count,
-                    "threshold": 20
-                })
+                logger.warning(
+                    {"event": "pending_var_high", "count": pending_var_count, "threshold": 20}
+                )

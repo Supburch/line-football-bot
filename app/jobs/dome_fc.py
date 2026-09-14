@@ -48,10 +48,7 @@ def send_dome_fc_morning_greeting():
         # it "should" have gone out on. This is what makes it self-healing.
         elapsed_days = (today_date - _CAMPAIGN_START).days + 1  # inclusive of today
         max_index = min(elapsed_days, len(files))
-        pending = [
-            i for i in range(max_index)
-            if not get_sent_event(f"dome_fc_image_{i}")
-        ]
+        pending = [i for i in range(max_index) if not get_sent_event(f"dome_fc_image_{i}")]
 
         if not pending:
             logger.info("dome_fc_all_images_sent")
@@ -85,8 +82,7 @@ def send_dome_fc_morning_greeting():
         # something that needs strict once-per-day dedup anymore).
         if today_date >= _CAMPAIGN_START + datetime.timedelta(days=len(files) - 1):
             greeting_text = (
-                "🌅 สวัสดีตอนเช้าครับ! ⚽\n\n"
-                "⚽🔥 พรีเมียร์ลีกกลับมาแล้ว! เตรียมมันส์ครบทุกแมตช์ เริ่มวันนี้"
+                "🌅 สวัสดีตอนเช้าครับ! ⚽\n\n" "⚽🔥 พรีเมียร์ลีกกลับมาแล้ว! เตรียมมันส์ครบทุกแมตช์ เริ่มวันนี้"
             )
         else:
             greeting_text = "🌅 สวัสดีตอนเช้าครับ! ⚽"

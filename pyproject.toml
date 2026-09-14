@@ -1,0 +1,15 @@
+# Ruff + Black configuration.
+# Kept minimal and aligned with this codebase's existing style so CI passes.
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+# E701: single-line compound statements (e.g. `if x: return y`) — intentional
+#       compact style used throughout this codebase.
+# E402: module-level import not at the top of the file — intentional in a few
+#       places (e.g. `import random` placed after the data list in greetings.py).
+ignore = ["E701", "E402"]
+
+[tool.black]
+line-length = 100

@@ -1,11 +1,10 @@
 from typing import Any
-from datetime import datetime
-from app.config import Config
 from app.services.football_service import svc
 from app.flex.flex_builders import build_standings_flex, build_upcoming_flex, build_scorers_flex
 from app.utils.constants import ACTIVE_COMPETITION, WC_CODE, UCL_CODE
 from app.utils.helpers import format_minute, first_not_none
 from app.utils.teams import TEAM_ALIASES, resolve_team
+
 
 def build_help_text() -> str:
     if ACTIVE_COMPETITION == WC_CODE:
@@ -34,11 +33,14 @@ def build_help_text() -> str:
         f"   🎯 Penalty Shootout"
     )
 
+
 def build_live_scores() -> str:
     data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/matches?status=LIVE", ttl=30)
-    if not isinstance(data, dict): return "📭 ขณะนี้ไม่มีการแข่งขัน"
+    if not isinstance(data, dict):
+        return "📭 ขณะนี้ไม่มีการแข่งขัน"
     matches = data.get("matches", [])
-    if not matches: return "📭 ขณะนี้ไม่มีการแข่งขัน"
+    if not matches:
+        return "📭 ขณะนี้ไม่มีการแข่งขัน"
 
     if ACTIVE_COMPETITION == WC_CODE:
         title = "🏆 WORLD CUP LIVE SCORES"
@@ -48,10 +50,18 @@ def build_live_scores() -> str:
         title = "🔴 EPL LIVE SCORES"
     lines = [title, "─" * 20]
     for m in matches:
-        home   = m["homeTeam"]["name"]
-        away   = m["awayTeam"]["name"]
-        hs     = first_not_none(m.get("score", {}).get("fullTime", {}).get("home"), m.get("score", {}).get("halfTime", {}).get("home"), 0)
-        as_    = first_not_none(m.get("score", {}).get("fullTime", {}).get("away"), m.get("score", {}).get("halfTime", {}).get("away"), 0)
+        home = m["homeTeam"]["name"]
+        away = m["awayTeam"]["name"]
+        hs = first_not_none(
+            m.get("score", {}).get("fullTime", {}).get("home"),
+            m.get("score", {}).get("halfTime", {}).get("home"),
+            0,
+        )
+        as_ = first_not_none(
+            m.get("score", {}).get("fullTime", {}).get("away"),
+            m.get("score", {}).get("halfTime", {}).get("away"),
+            0,
+        )
         minute = m.get("minute")
         if minute is not None:
             label = format_minute(minute)
@@ -60,11 +70,14 @@ def build_live_scores() -> str:
         lines.append(f"▶️ {home} {hs} - {as_} {away} ({label})")
     return "\n".join(lines)
 
+
 def build_recent_results() -> str:
     data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/matches?status=FINISHED", ttl=120)
-    if not isinstance(data, dict): return "📭 ไม่มีผลการแข่งขันล่าสุด"
+    if not isinstance(data, dict):
+        return "📭 ไม่มีผลการแข่งขันล่าสุด"
     matches = data.get("matches", [])
-    if not matches: return "📭 ไม่มีผลการแข่งขันล่าสุด"
+    if not matches:
+        return "📭 ไม่มีผลการแข่งขันล่าสุด"
 
     if ACTIVE_COMPETITION == WC_CODE:
         title = "⚽ ผลบอล WORLD CUP ล่าสุด"
@@ -79,24 +92,34 @@ def build_recent_results() -> str:
         home = m["homeTeam"]["name"]
         away = m["awayTeam"]["name"]
         score = m.get("score", {})
-        hs   = first_not_none(score.get("fullTime", {}).get("home"), score.get("halfTime", {}).get("home"), "?")
-        as_  = first_not_none(score.get("fullTime", {}).get("away"), score.get("halfTime", {}).get("away"), "?")
+        hs = first_not_none(
+            score.get("fullTime", {}).get("home"), score.get("halfTime", {}).get("home"), "?"
+        )
+        as_ = first_not_none(
+            score.get("fullTime", {}).get("away"), score.get("halfTime", {}).get("away"), "?"
+        )
         lines.append(f"✅ {home} {hs} - {as_} {away}")
     return "\n".join(lines)
 
+
 def build_standings() -> Any:
     data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/standings", ttl=14400)
-    if not isinstance(data, dict): return "📭 ยังไม่มีข้อมูลตารางคะแนน"
+    if not isinstance(data, dict):
+        return "📭 ยังไม่มีข้อมูลตารางคะแนน"
     standings_groups = data.get("standings", [])
-    if not standings_groups: return "📭 ยังไม่มีข้อมูลตารางคะแนน"
+    if not standings_groups:
+        return "📭 ยังไม่มีข้อมูลตารางคะแนน"
     return build_standings_flex(standings_groups)
+
 
 def build_upcoming(team_filter: str = None) -> Any:
     data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/matches?status=SCHEDULED", ttl=300)
-    if not isinstance(data, dict): return "📭 ตอนนี้ไม่มีโปรแกรมการแข่งขัน"
+    if not isinstance(data, dict):
+        return "📭 ตอนนี้ไม่มีโปรแกรมการแข่งขัน"
     matches = data.get("matches", [])
-    if not matches: return "📭 ตอนนี้ไม่มีโปรแกรมการแข่งขัน"
-    
+    if not matches:
+        return "📭 ตอนนี้ไม่มีโปรแกรมการแข่งขัน"
+
     team_info = TEAM_ALIASES.get(team_filter) if team_filter else None
     if team_info:
         match_key = team_info["match"]
@@ -113,12 +136,16 @@ def build_upcoming(team_filter: str = None) -> Any:
     matches.sort(key=lambda m: m.get("utcDate", ""))
     return build_upcoming_flex(matches, team_filter=team_filter)
 
+
 def build_scorers() -> Any:
     data = svc.fetch(f"competitions/{ACTIVE_COMPETITION}/scorers", ttl=14400)
-    if not isinstance(data, dict): return "📭 ยังไม่มีข้อมูลดาวซัลโว"
+    if not isinstance(data, dict):
+        return "📭 ยังไม่มีข้อมูลดาวซัลโว"
     scorers = data.get("scorers", [])
-    if not scorers: return "📭 ยังไม่มีข้อมูลดาวซัลโว"
+    if not scorers:
+        return "📭 ยังไม่มีข้อมูลดาวซัลโว"
     return build_scorers_flex(scorers)
+
 
 FIXTURE_KEYS = ("โปรแกรม", "fixture", "นัดถัดไป")
 
@@ -128,6 +155,7 @@ COMMAND_MAP = [
     (("ผล", "ผลบอล", "result"), build_recent_results),
     (("ดาวซัลโว", "scorer", "scorers", "รองเท้าทองคำ"), build_scorers),
 ]
+
 
 def handle_command(cmd_text: str) -> Any:
     cmd = cmd_text.strip().lower()

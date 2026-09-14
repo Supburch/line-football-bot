@@ -5,14 +5,18 @@ from app.services.football_service import svc
 from app.jobs.monitor_goals import monitor_goals
 from app.utils.constants import ACTIVE_COMPETITION
 
+
 class SchedulerState:
     CURRENT_POLL_MODE = "slow"
+
 
 def _jitter(base_minutes: int, spread: int = 5) -> int:
     return base_minutes + random.randint(0, spread)
 
+
 def run_smart_schedule(scheduler):
     from datetime import timedelta
+
     now_utc = datetime.now(timezone.utc)
     date_from = (now_utc - timedelta(days=1)).strftime("%Y-%m-%d")
     date_to = (now_utc + timedelta(days=1)).strftime("%Y-%m-%d")

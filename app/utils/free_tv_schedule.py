@@ -76,7 +76,8 @@ def is_free_tv_match(home_en: str, away_en: str, match_date: date) -> bool:
     away_lower = away_en.strip().lower()
     for m_date, _, _, _, m_home_en, m_away_en in FREE_TV_MATCHES:
         if m_date == match_date:
-            if (m_home_en.lower() in home_lower or home_lower in m_home_en.lower()) and \
-               (m_away_en.lower() in away_lower or away_lower in m_away_en.lower()):
+            if (m_home_en.lower() in home_lower or home_lower in m_home_en.lower()) and (
+                m_away_en.lower() in away_lower or away_lower in m_away_en.lower()
+            ):
                 return True
     return False

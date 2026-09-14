@@ -10,14 +10,15 @@ from threading import Lock
 from app.config import Config
 from app.utils.logger import logger
 
+
 class FootballService:
     BASE_URL = "https://api.football-data.org/v4/"
 
     # Constants (immutable — safe as class attrs)
-    MIN_INTERVAL   = 6.5
+    MIN_INTERVAL = 6.5
     FAIL_THRESHOLD = 3
-    COOLDOWN_429   = 900
-    COOLDOWN_FAIL  = 300
+    COOLDOWN_429 = 900
+    COOLDOWN_FAIL = 300
 
     def __init__(self, api_key: str):
         self.api_key = api_key
@@ -27,9 +28,9 @@ class FootballService:
 
         # Rate-limit mutable state (instance-level for correct encapsulation)
         self._last_call_time = 0.0
-        self._block_until    = 0.0
-        self._fail_count     = 0
-        self._requests_left  = 10  # free tier limit per minute
+        self._block_until = 0.0
+        self._fail_count = 0
+        self._requests_left = 10  # free tier limit per minute
 
         self.cache = TTLCache(maxsize=100, ttl=3600)
 
@@ -42,19 +43,21 @@ class FootballService:
             raise_on_status=False,
         )
         session.mount("https://", HTTPAdapter(max_retries=retry, pool_maxsize=10))
-        session.headers.update({
-            "X-Auth-Token": api_key,
-            "User-Agent": "FootballBot/1.0 (LINE chatbot; EPL alerts)",
-        })
+        session.headers.update(
+            {
+                "X-Auth-Token": api_key,
+                "User-Agent": "FootballBot/1.0 (LINE chatbot; EPL alerts)",
+            }
+        )
         self.session = session
 
     def _wait_for_rate_limit(self):
         # Calculate gap while holding the lock, then sleep OUTSIDE the lock
         # to avoid blocking other threads (e.g. _record_429, _is_blocked) during sleep.
         with self._lock:
-            now    = time.time()
+            now = time.time()
             jitter = random.uniform(0.5, 2.5)
-            gap    = (self.MIN_INTERVAL + jitter) - (now - self._last_call_time)
+            gap = (self.MIN_INTERVAL + jitter) - (now - self._last_call_time)
         if gap > 0:
             time.sleep(gap)
         with self._lock:
@@ -67,7 +70,7 @@ class FootballService:
     def _record_429(self):
         with self._lock:
             self._block_until = time.time() + self.COOLDOWN_429
-            self._fail_count  = 0
+            self._fail_count = 0
             logger.warning(f"⛔ 429 received — pausing {self.COOLDOWN_429}s")
 
     def _record_failure(self):
@@ -75,7 +78,7 @@ class FootballService:
             self._fail_count += 1
             if self._fail_count >= self.FAIL_THRESHOLD:
                 self._block_until = time.time() + self.COOLDOWN_FAIL
-                self._fail_count  = 0
+                self._fail_count = 0
                 logger.warning(f"⛔ {self.FAIL_THRESHOLD} failures — pausing {self.COOLDOWN_FAIL}s")
 
     def _record_success(self, response: requests.Response):
@@ -126,5 +129,6 @@ class FootballService:
             logger.error(f"Fetch error [{endpoint}]: {e}")
             self._record_failure()
             return None
+
 
 svc = FootballService(Config.FOOTBALL_API_KEY)

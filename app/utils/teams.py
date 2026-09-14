@@ -35,7 +35,15 @@ TEAM_ALIASES: Dict[str, Dict[str, Union[str, list]]] = {
     "tottenham": {
         "name_th": "สเปอร์ส",
         "match": "tottenham",
-        "aliases": ["สเปอร์ส", "สเปอร์", "spurs", "tottenham", "tottenham hotspur", "ไก่", "ไก่เดือยทอง"],
+        "aliases": [
+            "สเปอร์ส",
+            "สเปอร์",
+            "spurs",
+            "tottenham",
+            "tottenham hotspur",
+            "ไก่",
+            "ไก่เดือยทอง",
+        ],
     },
 }
 
