@@ -25,6 +25,7 @@ def test_resolve_team_thai_nicknames():
     assert resolve_team("โปรแกรม สาลิกา") == "newcastle"
     assert resolve_team("โปรแกรม สาลิกาดง") == "newcastle"
     assert resolve_team("โปรแกรม นิวฯ") == "newcastle"
+    assert resolve_team("โปรแกรม นิว") == "newcastle"
 
 
 def test_resolve_team_english_and_none():

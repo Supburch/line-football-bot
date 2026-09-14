@@ -30,7 +30,7 @@ TEAM_ALIASES: Dict[str, Dict[str, Union[str, list]]] = {
     "newcastle": {
         "name_th": "นิวคาสเซิล",
         "match": "newcastle",
-        "aliases": ["นิวคาสเซิล", "นิวฯ", "newcastle", "newcastle united", "สาลิกา", "สาลิกาดง"],
+        "aliases": ["นิวคาสเซิล", "นิวฯ", "นิว", "newcastle", "newcastle united", "สาลิกา", "สาลิกาดง"],
     },
     "tottenham": {
         "name_th": "สเปอร์ส",
