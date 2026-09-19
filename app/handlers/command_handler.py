@@ -30,7 +30,9 @@ def build_help_text() -> str:
         f"🔔 แจ้งเตือนอัตโนมัติ{notification_info}\n"
         f"   🔄 VAR (ประตูถูกยกเลิก)\n"
         f"   🟥 ใบแดง / ใบเหลืองสอง\n"
-        f"   🎯 Penalty Shootout"
+        f"   🎯 Penalty Shootout\n"
+        f"\n"
+        f"** หมายเหตุ : สามารถพิมพ์คำสั่ง ว่า บอตโว๊ย/บอตโว้ย ได้เช่นเดียวกัน"
     )
 
 

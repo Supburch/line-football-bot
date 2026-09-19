@@ -7,6 +7,13 @@ def test_extract_command():
     assert extract_command(text) == "ตาราง"
 
 
+def test_extract_command_prefix_variants():
+    # Canonical prefix + common misspellings all resolve to the same command.
+    assert extract_command("บอตเว้ย ตาราง") == "ตาราง"
+    assert extract_command("บอตโว๊ย ตาราง") == "ตาราง"
+    assert extract_command("บอตโว้ย ตาราง") == "ตาราง"
+
+
 def test_safe_url():
     assert safe_url("http://example.com") == "https://example.com"
     assert safe_url("https://example.com") == "https://example.com"

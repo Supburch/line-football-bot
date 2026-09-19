@@ -1,6 +1,6 @@
 import re
 from typing import Optional
-from app.utils.constants import DEFAULT_LOGO, BOT_PREFIX, WATCHED_TEAMS, WATCHED_COUNTRIES, WC_CODE
+from app.utils.constants import DEFAULT_LOGO, WATCHED_TEAMS, WATCHED_COUNTRIES, WAKE_WORDS, WC_CODE
 
 
 def safe_url(url: Optional[str], team_name: Optional[str] = None) -> str:
@@ -45,7 +45,9 @@ def safe_url(url: Optional[str], team_name: Optional[str] = None) -> str:
 
 
 def extract_command(text: str) -> str:
-    return re.sub(rf"^\s*{re.escape(BOT_PREFIX)}\s*", "", text, count=1).strip()
+    prefixes = sorted(WAKE_WORDS, key=len, reverse=True)
+    pattern = r"^\s*(?:" + "|".join(re.escape(p) for p in prefixes) + r")\s*"
+    return re.sub(pattern, "", text, count=1).strip()
 
 
 def safe_group_id(source) -> str:

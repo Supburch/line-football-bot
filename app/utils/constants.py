@@ -52,7 +52,7 @@ def is_live_score_enabled() -> bool:
 
 
 BOT_PREFIX = "บอตเว้ย"
-WAKE_WORDS = ["บอตเว้ย"]
+WAKE_WORDS = ["บอตเว้ย", "บอตโว๊ย", "บอตโว้ย"]
 DEFAULT_LOGO = "https://via.placeholder.com/100/CCCCCC/FFFFFF?text=?"
 
 # World Cup Countdown Settings
