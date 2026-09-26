@@ -2,6 +2,14 @@
 
 บันทึกการอัปเดตของ Line Football Bot — เรียงจากล่าสุดไปเก่า
 
+## 2026-09-26 — Wake word "ได้รม" ตอบกลับแบบดีเลย์ 4 นาที
+
+### เพิ่ม
+- เพิ่ม wake word `-- ได้รม --` เมื่อผู้ใช้พิมพ์คำนี้ บอตจะประมวลผลคำสั่ง **หลังเวลา 4 นาที** แทนการตอบทันที
+  - ค่าปรับแก้ได้ที่ `DELAYED_WAKE_WORDS` และ `DELAYED_RESPONSE_MINUTES` ใน `app/utils/constants.py`
+  - ใช้ `push_message` แทน `reply_message` เพราะ reply token ของ LINE หมดอายุเกิน 4 นาที
+- เพิ่ม `push_to()` ใน `app/services/line_service.py` สำหรับส่งข้อความไปยัง group/room/user เดียว
+
 ## 2026-08-21 — ส่งภาพ Dome FC แบบรายภาพ (self-healing) + กัน cleanup ลบ key
 
 ### เปลี่ยนแปลง

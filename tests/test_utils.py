@@ -1,5 +1,5 @@
-from app.utils.helpers import extract_command, safe_url
-from app.utils.constants import BOT_PREFIX, DEFAULT_LOGO
+from app.utils.helpers import extract_command, extract_delayed_command, safe_url
+from app.utils.constants import BOT_PREFIX, DEFAULT_LOGO, DELAYED_WAKE_WORDS, DELAYED_RESPONSE_MINUTES
 
 
 def test_extract_command():
@@ -12,6 +12,19 @@ def test_extract_command_prefix_variants():
     assert extract_command("บอตเว้ย ตาราง") == "ตาราง"
     assert extract_command("บอตโว๊ย ตาราง") == "ตาราง"
     assert extract_command("บอตโว้ย ตาราง") == "ตาราง"
+
+
+def test_extract_delayed_command():
+    # Bare delayed wake word resolves to an empty command (falls back to help text).
+    assert extract_delayed_command("-- ได้รม --") == ""
+    assert extract_delayed_command("ได้รม") == ""
+    # A command after the delayed wake word is still extracted.
+    assert extract_delayed_command("-- ได้รม -- ตาราง") == "ตาราง"
+
+
+def test_delayed_wake_word_constants():
+    assert "ได้รม" in DELAYED_WAKE_WORDS
+    assert DELAYED_RESPONSE_MINUTES == 4
 
 
 def test_safe_url():

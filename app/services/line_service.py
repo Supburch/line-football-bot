@@ -28,11 +28,7 @@ line_config = Configuration(access_token=Config.LINE_TOKEN)
 broadcast_executor = ThreadPoolExecutor(max_workers=10, thread_name_prefix="Broadcast")
 
 
-def broadcast(msg: Union[str, FlexDict, list[Union[str, FlexDict]]]) -> BroadcastResult:
-    groups = db_get_groups()
-    if not groups:
-        return BroadcastResult.SUCCESS  # Nothing to do
-
+def _build_line_messages(msg: Union[str, FlexDict, list[Union[str, FlexDict]]]) -> list:
     raw_msgs = msg if isinstance(msg, list) else [msg]
     line_msgs = []
     for m in raw_msgs:
@@ -50,6 +46,32 @@ def broadcast(msg: Union[str, FlexDict, list[Union[str, FlexDict]]]) -> Broadcas
                 )
         else:
             line_msgs.append(TextMessage(text=m))
+    return line_msgs
+
+
+def push_to(target_id: str, msg: Union[str, FlexDict, list[Union[str, FlexDict]]]) -> bool:
+    """Pushes a message to a single target (group/room/user) without a reply token.
+
+    Used for delayed replies where the original LINE reply_token has expired.
+    """
+    if not target_id:
+        return False
+    line_msgs = _build_line_messages(msg)
+    try:
+        with ApiClient(line_config) as client:
+            MessagingApi(client).push_message(PushMessageRequest(to=target_id, messages=line_msgs))
+        return True
+    except Exception as e:
+        logger.error({"event": "push_to_failed", "target_id": target_id, "error": str(e)})
+        return False
+
+
+def broadcast(msg: Union[str, FlexDict, list[Union[str, FlexDict]]]) -> BroadcastResult:
+    groups = db_get_groups()
+    if not groups:
+        return BroadcastResult.SUCCESS  # Nothing to do
+
+    line_msgs = _build_line_messages(msg)
 
     def _send(gid: str) -> bool:
         try:

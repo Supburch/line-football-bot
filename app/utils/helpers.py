@@ -1,6 +1,13 @@
 import re
 from typing import Optional
-from app.utils.constants import DEFAULT_LOGO, WATCHED_TEAMS, WATCHED_COUNTRIES, WAKE_WORDS, WC_CODE
+from app.utils.constants import (
+    DEFAULT_LOGO,
+    WATCHED_TEAMS,
+    WATCHED_COUNTRIES,
+    WAKE_WORDS,
+    DELAYED_WAKE_WORDS,
+    WC_CODE,
+)
 
 
 def safe_url(url: Optional[str], team_name: Optional[str] = None) -> str:
@@ -48,6 +55,19 @@ def extract_command(text: str) -> str:
     prefixes = sorted(WAKE_WORDS, key=len, reverse=True)
     pattern = r"^\s*(?:" + "|".join(re.escape(p) for p in prefixes) + r")\s*"
     return re.sub(pattern, "", text, count=1).strip()
+
+
+def extract_delayed_command(text: str) -> str:
+    """Strips the delayed wake word (and its decorative dashes) from a message.
+
+    e.g. "-- ได้รม --" -> "" and "-- ได้รม -- ตาราง" -> "ตาราง".
+    """
+    cleaned = text
+    for w in DELAYED_WAKE_WORDS:
+        cleaned = cleaned.replace(w, "")
+    cleaned = cleaned.replace("--", "")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
 
 
 def safe_group_id(source) -> str:
