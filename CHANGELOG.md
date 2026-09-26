@@ -11,8 +11,11 @@
 - เพิ่ม `push_to()` ใน `app/services/line_service.py` สำหรับส่งข้อความไปยัง group/room/user เดียว
 
 ### แก้ไข
-- ส่งข้อความยืนยันทันที (`⏰ รับทราบครับ! จะส่งผลลัพธ์ให้ในอีก 4 นาที`) เมื่อรับ wake word `ได้รม` เพื่อให้ผู้ใช้รู้ว่าบอตทำงานอยู่ (เดิมเงียบสนิทจนกว่าจะครบดีเลย์)
-- `schedule_delayed_reply()` คืนค่า `bool` เพื่อให้ handler ส่ง acknowledgment เฉพาะเมื่อ schedule สำเร็จเท่านั้น
+- **แก้ปัญหาครบ 4 นาทีแล้วบอตเงียบ**: เดิมงานดีเลย์เก็บในหน่วยความจำ (APScheduler in-process) ซึ่งหายไปเมื่อ Render free tier สลีป/restart จึงไม่มีข้อความส่งกลับ
+  - เปลี่ยนมา **persist** คำสั่งลงตาราง `delayed_commands` ใน Supabase และเพิ่ม endpoint `/cron/delayed` ให้ external scheduler (เช่น cron-job.org) ping ทุกนาทีเพื่อส่งคำสั่งที่ถึงเวลา
+  - ใช้กลไก claim (`status: pending → sent`) กันส่งซ้ำระหว่าง in-process scheduler กับ cron
+  - ต้องสร้างตารางด้วย `db/delayed_commands.sql` ก่อน และตั้ง cron-job.org ไปที่ `<BASE_URL>/cron/delayed`
+- ลบข้อความยืนยันทันที (`reply_message`) ออก — บอตทำงานเงียบๆ ตามเดิม
 
 ## 2026-08-21 — ส่งภาพ Dome FC แบบรายภาพ (self-healing) + กัน cleanup ลบ key
 

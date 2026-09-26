@@ -186,17 +186,23 @@ def test_is_watched_match():
     assert is_watched_match("Belgium", "Japan", WC_CODE) is False
 
 
-def test_schedule_delayed_reply():
+def test_schedule_delayed_reply(monkeypatch):
     from app.handlers import message_handler as mh
 
-    # No target -> returns False and schedules nothing.
-    assert mh.schedule_delayed_reply("", "ตาราง") is False
+    # Avoid real Supabase calls during the test.
+    monkeypatch.setattr(mh, "db_insert_delayed_command", lambda *a, **k: None)
 
-    # Valid target -> schedules a one-off date job and returns True.
-    assert mh.schedule_delayed_reply("target_123", "ตาราง") is True
+    # No target -> schedules nothing (no crash).
+    mh.schedule_delayed_reply("", "ตาราง")
+    assert not any(j.func is mh._delayed_work for j in mh.scheduler.get_jobs())
 
+    # Valid target -> schedules a one-off date job carrying (job_id, target, cmd).
+    mh.schedule_delayed_reply("target_123", "ตาราง")
     delayed_jobs = [j for j in mh.scheduler.get_jobs() if j.func is mh._delayed_work]
-    assert any(tuple(j.args) == ("target_123", "ตาราง") for j in delayed_jobs)
+    assert any(
+        len(j.args) == 3 and j.args[1] == "target_123" and j.args[2] == "ตาราง"
+        for j in delayed_jobs
+    )
 
     # Clean up so this test leaves no dangling job behind.
     for j in delayed_jobs:

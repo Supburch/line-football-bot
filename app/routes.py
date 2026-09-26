@@ -65,3 +65,16 @@ def register_routes(app):
         check_world_cup_countdown()
         send_dome_fc_morning_greeting()
         return jsonify({"status": "ok"}), 200
+
+    @app.route("/cron/delayed")
+    def cron_delayed():
+        """Wake-and-send hook for delayed replies (external scheduler pings every minute).
+
+        Delayed commands are persisted to Supabase so they survive Render free-tier
+        sleeps/restarts. This endpoint delivers any that are now due; the
+        'delayed_commands.status' claim makes it idempotent.
+        """
+        from app.handlers.message_handler import process_due_delayed_commands
+
+        delivered = process_due_delayed_commands()
+        return jsonify({"status": "ok", "delivered": delivered}), 200

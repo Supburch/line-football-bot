@@ -18,45 +18,62 @@ from app.utils.constants import (
     WAKE_WORDS,
     DELAYED_WAKE_WORDS,
     DELAYED_RESPONSE_MINUTES,
-    DELAYED_ACK_TEMPLATE,
 )
 from app.services.line_service import line_config, push_to
 from app.services.scheduler_service import scheduler
 from app.handlers.command_handler import handle_command
-from app.repositories.supabase_client import db_register_group
+from app.repositories.supabase_client import (
+    db_register_group,
+    db_insert_delayed_command,
+    db_get_due_delayed_commands,
+    db_claim_delayed_command,
+    db_reopen_delayed_command,
+)
 from app.utils.helpers import extract_command, extract_delayed_command, safe_group_id
 
 handler = WebhookHandler(Config.LINE_SECRET)
 
 
-def _delayed_work(target_id: str, cmd: str) -> None:
-    """Runs the command at the delayed mark and pushes the result to the sender."""
+def _delayed_work(job_id: str, target_id: str, cmd: str) -> bool:
+    """Claim + deliver one delayed command (idempotent; shared by scheduler & cron)."""
+    if not db_claim_delayed_command(job_id):
+        return False  # already delivered by another path
     try:
         result = handle_command(cmd)
     except Exception as e:
         logger.error({"event": "delayed_reply_handle_failed", "error": str(e)})
         result = "❌ ขออภัยครับ ระบบขัดข้องชั่วคราว"
-    push_to(target_id, result)
+    ok = push_to(target_id, result)
+    if not ok:
+        db_reopen_delayed_command(job_id)  # retry on the next cron tick
+    return ok
 
 
-def schedule_delayed_reply(target_id: str, cmd: str) -> bool:
+def schedule_delayed_reply(target_id: str, cmd: str) -> None:
     """Schedules a one-off reply DELAYED_RESPONSE_MINUTES from now.
 
-    Returns True when the job was successfully scheduled, so the caller can
-    decide whether to acknowledge the request immediately.
+    The command is persisted to Supabase (so an external cron can recover it if
+    Render free tier sleeps/restarts the process) and also scheduled in-process
+    for exact timing when the app stays awake. `_delayed_work`'s claim ensures
+    the reply is delivered exactly once across both paths.
     """
     if not target_id:
         logger.warning({"event": "delayed_reply_skipped_no_target"})
-        return False
+        return
 
     run_at = datetime.now(Config.TZ) + timedelta(minutes=DELAYED_RESPONSE_MINUTES)
     job_id = f"delayed_reply_{target_id}_{int(time.time() * 1000)}"
+
+    # 1) Persist so it survives Render free-tier sleeps/restarts.
+    db_insert_delayed_command(job_id, target_id, cmd, run_at.isoformat())
+
+    # 2) In-process fast path for exact timing when the app stays awake.
     try:
         scheduler.add_job(
             _delayed_work,
             "date",
             run_date=run_at,
-            args=[target_id, cmd],
+            args=[job_id, target_id, cmd],
             id=job_id,
             replace_existing=False,
             misfire_grace_time=60,
@@ -68,10 +85,20 @@ def schedule_delayed_reply(target_id: str, cmd: str) -> bool:
                 "run_at": run_at.isoformat(),
             }
         )
-        return True
     except Exception as e:
         logger.error({"event": "delayed_reply_schedule_failed", "error": str(e)})
-        return False
+
+
+def process_due_delayed_commands() -> int:
+    """Deliver every overdue delayed command. Called by /cron/delayed."""
+    delivered = 0
+    for row in db_get_due_delayed_commands():
+        try:
+            if _delayed_work(row["id"], row["target_id"], row["command"]):
+                delivered += 1
+        except Exception as e:
+            logger.error({"event": "delayed_reply_cron_failed", "error": str(e)})
+    return delivered
 
 
 @handler.add(MessageEvent, message=TextMessageContent)
@@ -83,21 +110,7 @@ def handle_msg(event):
         target_id = safe_group_id(event.source)
         if event.source.type in ["group", "room"] and target_id:
             db_register_group(target_id)
-        scheduled = schedule_delayed_reply(target_id, extract_delayed_command(text))
-        if scheduled:
-            # Acknowledge immediately (the reply token is still valid) so the
-            # user knows the bot is alive; the actual result is pushed later.
-            ack = DELAYED_ACK_TEMPLATE.format(minutes=DELAYED_RESPONSE_MINUTES)
-            try:
-                with ApiClient(line_config) as client:
-                    MessagingApi(client).reply_message(
-                        ReplyMessageRequest(
-                            reply_token=event.reply_token,
-                            messages=[TextMessage(text=ack)],
-                        )
-                    )
-            except Exception as e:
-                logger.error({"event": "delayed_reply_ack_failed", "error": str(e)})
+        schedule_delayed_reply(target_id, extract_delayed_command(text))
         return
 
     is_cmd = text.startswith(BOT_PREFIX)

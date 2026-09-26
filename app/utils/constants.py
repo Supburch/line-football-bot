@@ -58,7 +58,6 @@ WAKE_WORDS = ["บอตเว้ย", "บอตโว๊ย", "บอตโว
 # command after DELAYED_RESPONSE_MINUTES instead of replying immediately.
 DELAYED_WAKE_WORDS = ["ได้รม"]
 DELAYED_RESPONSE_MINUTES = 4
-DELAYED_ACK_TEMPLATE = "⏰ รับทราบครับ! จะส่งผลลัพธ์ให้ในอีก {minutes} นาที"
 
 DEFAULT_LOGO = "https://via.placeholder.com/100/CCCCCC/FFFFFF?text=?"
 
