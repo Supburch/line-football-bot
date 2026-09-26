@@ -18,6 +18,7 @@ from app.utils.constants import (
     WAKE_WORDS,
     DELAYED_WAKE_WORDS,
     DELAYED_RESPONSE_MINUTES,
+    DELAYED_ACK_TEMPLATE,
 )
 from app.services.line_service import line_config, push_to
 from app.services.scheduler_service import scheduler
@@ -38,11 +39,15 @@ def _delayed_work(target_id: str, cmd: str) -> None:
     push_to(target_id, result)
 
 
-def schedule_delayed_reply(target_id: str, cmd: str) -> None:
-    """Schedules a one-off reply DELAYED_RESPONSE_MINUTES from now."""
+def schedule_delayed_reply(target_id: str, cmd: str) -> bool:
+    """Schedules a one-off reply DELAYED_RESPONSE_MINUTES from now.
+
+    Returns True when the job was successfully scheduled, so the caller can
+    decide whether to acknowledge the request immediately.
+    """
     if not target_id:
         logger.warning({"event": "delayed_reply_skipped_no_target"})
-        return
+        return False
 
     run_at = datetime.now(Config.TZ) + timedelta(minutes=DELAYED_RESPONSE_MINUTES)
     job_id = f"delayed_reply_{target_id}_{int(time.time() * 1000)}"
@@ -63,8 +68,10 @@ def schedule_delayed_reply(target_id: str, cmd: str) -> None:
                 "run_at": run_at.isoformat(),
             }
         )
+        return True
     except Exception as e:
         logger.error({"event": "delayed_reply_schedule_failed", "error": str(e)})
+        return False
 
 
 @handler.add(MessageEvent, message=TextMessageContent)
@@ -76,7 +83,21 @@ def handle_msg(event):
         target_id = safe_group_id(event.source)
         if event.source.type in ["group", "room"] and target_id:
             db_register_group(target_id)
-        schedule_delayed_reply(target_id, extract_delayed_command(text))
+        scheduled = schedule_delayed_reply(target_id, extract_delayed_command(text))
+        if scheduled:
+            # Acknowledge immediately (the reply token is still valid) so the
+            # user knows the bot is alive; the actual result is pushed later.
+            ack = DELAYED_ACK_TEMPLATE.format(minutes=DELAYED_RESPONSE_MINUTES)
+            try:
+                with ApiClient(line_config) as client:
+                    MessagingApi(client).reply_message(
+                        ReplyMessageRequest(
+                            reply_token=event.reply_token,
+                            messages=[TextMessage(text=ack)],
+                        )
+                    )
+            except Exception as e:
+                logger.error({"event": "delayed_reply_ack_failed", "error": str(e)})
         return
 
     is_cmd = text.startswith(BOT_PREFIX)

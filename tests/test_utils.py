@@ -184,3 +184,21 @@ def test_is_watched_match():
     assert is_watched_match("Scotland", "Hungary", WC_CODE) is True
     # Other random team should not be watched
     assert is_watched_match("Belgium", "Japan", WC_CODE) is False
+
+
+def test_schedule_delayed_reply():
+    from app.handlers import message_handler as mh
+
+    # No target -> returns False and schedules nothing.
+    assert mh.schedule_delayed_reply("", "ตาราง") is False
+
+    # Valid target -> schedules a one-off date job and returns True.
+    assert mh.schedule_delayed_reply("target_123", "ตาราง") is True
+
+    delayed_jobs = [j for j in mh.scheduler.get_jobs() if j.func is mh._delayed_work]
+    assert any(tuple(j.args) == ("target_123", "ตาราง") for j in delayed_jobs)
+
+    # Clean up so this test leaves no dangling job behind.
+    for j in delayed_jobs:
+        mh.scheduler.remove_job(j.id)
+

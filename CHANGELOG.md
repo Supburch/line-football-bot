@@ -10,6 +10,10 @@
   - ใช้ `push_message` แทน `reply_message` เพราะ reply token ของ LINE หมดอายุเกิน 4 นาที
 - เพิ่ม `push_to()` ใน `app/services/line_service.py` สำหรับส่งข้อความไปยัง group/room/user เดียว
 
+### แก้ไข
+- ส่งข้อความยืนยันทันที (`⏰ รับทราบครับ! จะส่งผลลัพธ์ให้ในอีก 4 นาที`) เมื่อรับ wake word `ได้รม` เพื่อให้ผู้ใช้รู้ว่าบอตทำงานอยู่ (เดิมเงียบสนิทจนกว่าจะครบดีเลย์)
+- `schedule_delayed_reply()` คืนค่า `bool` เพื่อให้ handler ส่ง acknowledgment เฉพาะเมื่อ schedule สำเร็จเท่านั้น
+
 ## 2026-08-21 — ส่งภาพ Dome FC แบบรายภาพ (self-healing) + กัน cleanup ลบ key
 
 ### เปลี่ยนแปลง
