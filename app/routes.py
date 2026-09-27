@@ -75,6 +75,14 @@ def register_routes(app):
         'delayed_commands.status' claim makes it idempotent.
         """
         from app.handlers.message_handler import process_due_delayed_commands
+        from app.utils.logger import logger
 
-        delivered = process_due_delayed_commands()
+        # Always return 200: cron-job.org auto-disables a job after consecutive
+        # non-2xx responses, so a transient Supabase error (e.g. the
+        # `delayed_commands` table not existing yet) must not surface as a 500.
+        delivered = 0
+        try:
+            delivered = process_due_delayed_commands()
+        except Exception as e:
+            logger.error({"event": "cron_delayed_failed", "error": str(e)})
         return jsonify({"status": "ok", "delivered": delivered}), 200

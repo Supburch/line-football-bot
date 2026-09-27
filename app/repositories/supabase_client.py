@@ -146,33 +146,45 @@ def db_insert_delayed_command(cmd_id: str, target_id: str, command: str, due_at:
     """Persist a delayed command so it survives Render free-tier sleeps/restarts."""
     if not supabase:
         return
-    execute_with_retry(
-        supabase.table("delayed_commands").insert(
-            {
-                "id": cmd_id,
-                "target_id": target_id,
-                "command": command,
-                "due_at": due_at,
-                "status": "pending",
-            }
+    try:
+        execute_with_retry(
+            supabase.table("delayed_commands").insert(
+                {
+                    "id": cmd_id,
+                    "target_id": target_id,
+                    "command": command,
+                    "due_at": due_at,
+                    "status": "pending",
+                }
+            )
         )
-    )
+    except Exception as e:
+        logger.error({"event": "db_insert_delayed_command_failed", "error": str(e)})
 
 
 def db_get_due_delayed_commands() -> List[dict]:
-    """Return pending delayed commands whose due time has already passed."""
+    """Return pending delayed commands whose due time has already passed.
+
+    Never raises: any Supabase/query error (e.g. the `delayed_commands` table
+    not existing yet) is logged and treated as an empty result so callers like
+    /cron/delayed can keep returning 200.
+    """
     if not supabase:
         return []
-    now_iso = datetime.now(Config.TZ).isoformat()
-    res = execute_with_retry(
-        supabase.table("delayed_commands")
-        .select("id,target_id,command")
-        .eq("status", "pending")
-        .lte("due_at", now_iso)
-        .order("due_at")
-        .limit(50)
-    )
-    return res.data if (res and res.data) else []
+    try:
+        now_iso = datetime.now(Config.TZ).isoformat()
+        res = execute_with_retry(
+            supabase.table("delayed_commands")
+            .select("id,target_id,command")
+            .eq("status", "pending")
+            .lte("due_at", now_iso)
+            .order("due_at")
+            .limit(50)
+        )
+        return res.data if (res and res.data) else []
+    except Exception as e:
+        logger.error({"event": "db_get_due_delayed_commands_failed", "error": str(e)})
+        return []
 
 
 def db_claim_delayed_command(cmd_id: str) -> bool:
@@ -184,28 +196,35 @@ def db_claim_delayed_command(cmd_id: str) -> bool:
     """
     if not supabase:
         return True
-    res = execute_with_retry(
-        supabase.table("delayed_commands")
-        .update({"status": "sent"})
-        .eq("id", cmd_id)
-        .eq("status", "pending")
-    )
-    if res is not None and res.data:
-        return True
-    # Not claimed: either already sent, or the insert never happened. Distinguish
-    # so a lost insert (brief DB outage) doesn't silently drop the reply.
-    res = execute_with_retry(supabase.table("delayed_commands").select("id").eq("id", cmd_id))
-    return not (res is not None and res.data)
+    try:
+        res = execute_with_retry(
+            supabase.table("delayed_commands")
+            .update({"status": "sent"})
+            .eq("id", cmd_id)
+            .eq("status", "pending")
+        )
+        if res is not None and res.data:
+            return True
+        # Not claimed: either already sent, or the insert never happened. Distinguish
+        # so a lost insert (brief DB outage) doesn't silently drop the reply.
+        res = execute_with_retry(supabase.table("delayed_commands").select("id").eq("id", cmd_id))
+        return not (res is not None and res.data)
+    except Exception as e:
+        logger.error({"event": "db_claim_delayed_command_failed", "cmd_id": cmd_id, "error": str(e)})
+        return True  # best-effort: deliver without dedup when Supabase is down
 
 
 def db_reopen_delayed_command(cmd_id: str):
     """Reset a claimed command to pending so a failed push can be retried."""
     if not supabase:
         return
-    execute_with_retry(
-        supabase.table("delayed_commands")
-        .update({"status": "pending"})
-        .eq("id", cmd_id)
-        .eq("status", "sent")
-    )
+    try:
+        execute_with_retry(
+            supabase.table("delayed_commands")
+            .update({"status": "pending"})
+            .eq("id", cmd_id)
+            .eq("status", "sent")
+        )
+    except Exception as e:
+        logger.error({"event": "db_reopen_delayed_command_failed", "cmd_id": cmd_id, "error": str(e)})
 
