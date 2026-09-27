@@ -7,4 +7,4 @@ cachetools==5.3.3
 python-dotenv==1.0.1
 gunicorn==22.0.0
 pytz==2024.1
-gspread
+gspread==6.2.1

@@ -3,3 +3,9 @@ __pycache__/
 .env
 venv/
 .git/
+.pytest_cache/
+.ruff_cache/
+tests/
+.github/
+_git_*.txt
+_supabase_info.txt
