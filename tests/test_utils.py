@@ -15,7 +15,7 @@ def test_extract_command_prefix_variants():
 
 
 def test_extract_delayed_command():
-    # Bare delayed wake word resolves to an empty command (falls back to help text).
+    # Bare delayed wake word resolves to an empty command.
     assert extract_delayed_command("-- ได้รม --") == ""
     assert extract_delayed_command("ได้รม") == ""
     # A command after the delayed wake word is still extracted.
@@ -25,6 +25,24 @@ def test_extract_delayed_command():
 def test_delayed_wake_word_constants():
     assert "ได้รม" in DELAYED_WAKE_WORDS
     assert DELAYED_RESPONSE_MINUTES == 4
+
+
+def test_pick_random_delayed_command():
+    from app.utils.helpers import pick_random_delayed_command
+    from app.utils.teams import TEAM_ALIASES
+
+    valid = {"ตาราง", "โปรแกรม", "ดาวซัลโว"} | {f"โปรแกรม {key}" for key in TEAM_ALIASES}
+
+    # Every returned command must be one handle_command() understands.
+    for _ in range(100):
+        assert pick_random_delayed_command() in valid
+
+    # All four command families are reachable.
+    seen = {pick_random_delayed_command() for _ in range(500)}
+    assert "ตาราง" in seen
+    assert "โปรแกรม" in seen
+    assert "ดาวซัลโว" in seen
+    assert any(c.startswith("โปรแกรม ") for c in seen)
 
 
 def test_safe_url():

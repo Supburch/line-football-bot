@@ -29,7 +29,7 @@ from app.repositories.supabase_client import (
     db_claim_delayed_command,
     db_reopen_delayed_command,
 )
-from app.utils.helpers import extract_command, extract_delayed_command, safe_group_id
+from app.utils.helpers import extract_command, pick_random_delayed_command, safe_group_id
 
 handler = WebhookHandler(Config.LINE_SECRET)
 
@@ -110,7 +110,7 @@ def handle_msg(event):
         target_id = safe_group_id(event.source)
         if event.source.type in ["group", "room"] and target_id:
             db_register_group(target_id)
-        schedule_delayed_reply(target_id, extract_delayed_command(text))
+        schedule_delayed_reply(target_id, pick_random_delayed_command())
         return
 
     is_cmd = text.startswith(BOT_PREFIX)

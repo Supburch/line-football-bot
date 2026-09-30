@@ -54,8 +54,8 @@ def is_live_score_enabled() -> bool:
 BOT_PREFIX = "บอตเว้ย"
 WAKE_WORDS = ["บอตเว้ย", "บอตโว๊ย", "บอตโว้ย"]
 
-# Delayed wake word: when a user types "-- ได้รม --", the bot processes the
-# command after DELAYED_RESPONSE_MINUTES instead of replying immediately.
+# Delayed wake word: when a user types "-- ได้รม --", the bot silently picks a
+# random display command and delivers it after DELAYED_RESPONSE_MINUTES.
 DELAYED_WAKE_WORDS = ["ได้รม"]
 DELAYED_RESPONSE_MINUTES = 4
 

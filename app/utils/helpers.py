@@ -1,3 +1,4 @@
+import random
 import re
 from typing import Optional
 from app.utils.constants import (
@@ -8,6 +9,7 @@ from app.utils.constants import (
     DELAYED_WAKE_WORDS,
     WC_CODE,
 )
+from app.utils.teams import TEAM_ALIASES
 
 
 def safe_url(url: Optional[str], team_name: Optional[str] = None) -> str:
@@ -68,6 +70,28 @@ def extract_delayed_command(text: str) -> str:
     cleaned = cleaned.replace("--", "")
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
     return cleaned
+
+
+# The four "display" results the bot randomly picks when a user types the
+# delayed wake word (e.g. "-- ได้รม --"). Each value is an input that
+# handle_command() understands.
+DELAYED_COMMAND_KINDS = ("ตาราง", "โปรแกรม", "โปรแกรมทีม", "ดาวซัลโว")
+
+
+def pick_random_delayed_command() -> str:
+    """Randomly pick one of the four delayed display commands.
+
+    Returns a command string understood by ``handle_command()``:
+      - ``"ตาราง"``           -> standings
+      - ``"โปรแกรม"``         -> upcoming fixtures (all teams)
+      - ``"โปรแกรม <team>"``  -> next fixtures for a random favorite team
+      - ``"ดาวซัลโว"``        -> top scorers
+    """
+    kind = random.choice(DELAYED_COMMAND_KINDS)
+    if kind == "โปรแกรมทีม":
+        team_key = random.choice(list(TEAM_ALIASES))
+        return f"โปรแกรม {team_key}"
+    return kind
 
 
 def safe_group_id(source) -> str:
