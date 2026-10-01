@@ -210,7 +210,9 @@ def db_claim_delayed_command(cmd_id: str) -> bool:
         res = execute_with_retry(supabase.table("delayed_commands").select("id").eq("id", cmd_id))
         return not (res is not None and res.data)
     except Exception as e:
-        logger.error({"event": "db_claim_delayed_command_failed", "cmd_id": cmd_id, "error": str(e)})
+        logger.error(
+            {"event": "db_claim_delayed_command_failed", "cmd_id": cmd_id, "error": str(e)}
+        )
         return True  # best-effort: deliver without dedup when Supabase is down
 
 
@@ -226,5 +228,6 @@ def db_reopen_delayed_command(cmd_id: str):
             .eq("status", "sent")
         )
     except Exception as e:
-        logger.error({"event": "db_reopen_delayed_command_failed", "cmd_id": cmd_id, "error": str(e)})
-
+        logger.error(
+            {"event": "db_reopen_delayed_command_failed", "cmd_id": cmd_id, "error": str(e)}
+        )

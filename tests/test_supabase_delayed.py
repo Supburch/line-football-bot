@@ -4,6 +4,7 @@ These tests lock in the fix that keeps ``/cron/delayed`` returning 200 even when
 Supabase (or the ``delayed_commands`` table) is unavailable, so cron-job.org
 never auto-disables the job after consecutive non-2xx responses.
 """
+
 from unittest.mock import patch
 
 from flask import Flask

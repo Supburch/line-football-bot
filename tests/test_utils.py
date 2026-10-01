@@ -1,5 +1,10 @@
 from app.utils.helpers import extract_command, extract_delayed_command, safe_url
-from app.utils.constants import BOT_PREFIX, DEFAULT_LOGO, DELAYED_WAKE_WORDS, DELAYED_RESPONSE_MINUTES
+from app.utils.constants import (
+    BOT_PREFIX,
+    DEFAULT_LOGO,
+    DELAYED_WAKE_WORDS,
+    DELAYED_RESPONSE_MINUTES,
+)
 
 
 def test_extract_command():
@@ -225,4 +230,3 @@ def test_schedule_delayed_reply(monkeypatch):
     # Clean up so this test leaves no dangling job behind.
     for j in delayed_jobs:
         mh.scheduler.remove_job(j.id)
-

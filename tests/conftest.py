@@ -5,6 +5,7 @@
 session must provide them up front. SUPABASE is pointed at a localhost
 placeholder so tests never touch the real database.
 """
+
 from pathlib import Path
 
 from dotenv import load_dotenv
