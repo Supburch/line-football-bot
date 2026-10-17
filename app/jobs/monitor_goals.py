@@ -15,7 +15,7 @@ from app.flex.flex_builders import (
 )
 from app.utils.constants import (
     EPL_CODE,
-    ACTIVE_COMPETITION,
+    LIVE_COMPETITIONS_CSV,
     CLEANUP_MATCH_STATUSES,
     is_live_score_enabled,
 )
@@ -86,8 +86,8 @@ def _monitor_goals_inner(live_matches: list = None):
         if live_matches is not None:
             matches = live_matches
         else:
-            # Smart Polling: Fetch only the ACTIVE_COMPETITION to save quota
-            data = svc.fetch(f"matches?competitions={ACTIVE_COMPETITION}&status=LIVE", ttl=0)
+            # Smart Polling: Fetch every watched competition (EPL + UCL) to save quota
+            data = svc.fetch(f"matches?competitions={LIVE_COMPETITIONS_CSV}&status=LIVE", ttl=0)
             if not isinstance(data, dict):
                 return
             matches = data.get("matches", [])
@@ -372,9 +372,14 @@ def _process_red_cards_for_match(
             return
 
         for booking in bookings:
-            card_type = booking.get("type", "")
-            if card_type not in {"RED_CARD", "YELLOW_RED_CARD"}:
+            # football-data.org v4 reports a booking's card via the "card" field
+            # (values "YELLOW" / "RED"), NOT via "type" like the goals array does.
+            # Keep a fallback to "type" for safety, then normalize to the flex
+            # builder's vocabulary so straight reds and second-yellow reds both work.
+            raw_card = (booking.get("card") or booking.get("type") or "").upper()
+            if raw_card not in {"RED", "RED_CARD", "YELLOW_RED_CARD"}:
                 continue
+            card_type = "YELLOW_RED_CARD" if raw_card == "YELLOW_RED_CARD" else "RED_CARD"
 
             player_info = booking.get("player") or {}
             player_name = player_info.get("name", "")

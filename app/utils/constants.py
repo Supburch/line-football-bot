@@ -37,6 +37,22 @@ class DynamicCompetition:
 
 ACTIVE_COMPETITION = DynamicCompetition()
 
+# --- Live monitor competition scope ---
+# The live goal / red-card / VAR / penalty monitor watches a FIXED set of
+# competitions instead of the single dynamic ACTIVE_COMPETITION, so an event
+# involving a watched club is never missed just because it happened outside the
+# "primary" competition (e.g. a Liverpool UCL red card during the EPL season,
+# or an EPL red card while ACTIVE_COMPETITION points at the UCL).
+#
+# Both codes are free-tier (TIER_ONE) on football-data.org. The FA Cup (FAC),
+# EFL Cup (FLC), Europa League (EL) and UEFA Conference League (API code "UCL")
+# require paid plans, so a free API key would get 403 for them and they are
+# intentionally omitted here.
+LIVE_COMPETITIONS = [EPL_CODE, UCL_CODE]  # ["PL", "CL"]
+
+# Comma-separated form accepted by the /v4/matches endpoint.
+LIVE_COMPETITIONS_CSV = ",".join(LIVE_COMPETITIONS)
+
 # --- Temporary WC 26 flag ---
 # ตั้งเป็น True เพื่อปิดการแจ้งสกอร์สดช่วง WC 26 ชั่วคราว
 # เปลี่ยนเป็น False เมื่อต้องการเปิดคืน

@@ -30,10 +30,17 @@ def _watched_match(bookings=None, goals=None, home=0, away=0):
 
 
 _RED_CARD = {
-    "type": "RED_CARD",
+    "card": "RED",
     "player": {"name": "V. Dijk"},
     "team": {"name": "Liverpool"},
-    "minute": "60",
+    "minute": 60,
+}
+
+_YELLOW_CARD = {
+    "card": "YELLOW",
+    "player": {"name": "V. Dijk"},
+    "team": {"name": "Liverpool"},
+    "minute": 60,
 }
 
 _PENALTY_GOAL = {
@@ -77,6 +84,12 @@ def test_red_card_already_notified_is_not_rebroadcast():
     assert sent == []
 
 
+def test_yellow_card_is_not_broadcast():
+    """A plain yellow card must not be notified."""
+    sent = _run_monitor([_watched_match(bookings=[_YELLOW_CARD])], already_sent=False)
+    assert sent == []
+
+
 def test_penalty_goal_is_broadcast():
     """A penalty goal (type == PENALTY) must be notified, unlike regular goals."""
     first = _watched_match()
@@ -101,10 +114,10 @@ def test_regular_goal_is_not_broadcast():
 
 
 _NON_FAVORITE_RED_CARD = {
-    "type": "RED_CARD",
+    "card": "RED",
     "player": {"name": "J. Pickford"},
     "team": {"name": "Everton"},
-    "minute": "60",
+    "minute": 60,
 }
 
 _PENALTY_GOAL_EVERTON = {
@@ -151,3 +164,20 @@ def test_non_favorite_penalty_goal_is_broadcast():
     second = _non_watched_match(goals=[_PENALTY_GOAL_EVERTON], home=1, away=0)
     sent = _run_monitor([first, second], already_sent=False)
     assert sent == ["4242-PENALTY-D._Calvert-Lewin-30"]
+
+
+def test_monitor_fetches_epl_and_ucl_competitions():
+    """The live poll must fetch UCL alongside the EPL, not a single league.
+
+    Regression guard for the missed Liverpool UCL red card: the monitor used to
+    fetch only ACTIVE_COMPETITION (PL during the EPL season), so a red card in a
+    Champions League match was never seen.
+    """
+    with patch.object(monitor_goals, "state_manager", MatchStateManager()), patch.object(
+        monitor_goals, "is_live_score_enabled", return_value=True
+    ), patch.object(monitor_goals, "svc") as mock_svc:
+        mock_svc.fetch.return_value = {"matches": []}
+        monitor_goals._monitor_goals_inner()
+        endpoint = mock_svc.fetch.call_args[0][0]
+        codes = endpoint.split("competitions=", 1)[1].split("&", 1)[0]
+        assert set(codes.split(",")) == {"PL", "CL"}

@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from app.config import Config
 from app.services.football_service import svc
 from app.jobs.monitor_goals import monitor_goals
-from app.utils.constants import ACTIVE_COMPETITION
+from app.utils.constants import LIVE_COMPETITIONS_CSV
 
 
 class SchedulerState:
@@ -21,7 +21,7 @@ def run_smart_schedule(scheduler):
     date_from = (now_utc - timedelta(days=1)).strftime("%Y-%m-%d")
     date_to = (now_utc + timedelta(days=1)).strftime("%Y-%m-%d")
     data = svc.fetch(
-        f"competitions/{ACTIVE_COMPETITION}/matches?dateFrom={date_from}&dateTo={date_to}",
+        f"matches?competitions={LIVE_COMPETITIONS_CSV}&dateFrom={date_from}&dateTo={date_to}",
         ttl=1800,
     )
 
@@ -51,8 +51,10 @@ def run_smart_schedule(scheduler):
     if in_window:
         if SchedulerState.CURRENT_POLL_MODE != "high_speed":
             SchedulerState.CURRENT_POLL_MODE = "high_speed"
-            # Safe High-speed polling: 45 seconds (1.33 requests/min), far below the 10 requests/min rate limit!
-            scheduler.reschedule_job("goal_monitor", trigger="interval", seconds=45)
+            # High-speed polling: 20 seconds (3 requests/min), still below the 10 requests/min rate limit.
+            # Faster than the old 45s so the bot has a real chance to observe the brief
+            # "provisional goal" state football-data.org exposes before VAR removes it.
+            scheduler.reschedule_job("goal_monitor", trigger="interval", seconds=20)
         monitor_goals(live_matches=live_matches if live_matches else None)
     else:
         if SchedulerState.CURRENT_POLL_MODE != "slow":
