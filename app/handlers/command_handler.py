@@ -9,13 +9,10 @@ from app.utils.teams import TEAM_ALIASES, resolve_team
 def build_help_text() -> str:
     if ACTIVE_COMPETITION == WC_CODE:
         comp_name = "(ช่วงฟุตบอลโลก)"
-        notification_info = " 5 ทีมชาติ"
     elif ACTIVE_COMPETITION == UCL_CODE:
         comp_name = "(ช่วงยูฟ่าแชมเปียนส์ลีก)"
-        notification_info = "ทีมรักของคุณ (Spurs, Arsenal, Liverpool, Newcastle)"
     else:
         comp_name = "(ช่วงพรีเมียร์ลีก)"
-        notification_info = "ทีมที่คุณชื่นชอบ"
 
     return (
         f"⚽ สวัสดี! FootballBot ยินดีให้บริการ\n\n"
@@ -27,10 +24,10 @@ def build_help_text() -> str:
         f"📅 บอตเว้ย โปรแกรม\n"
         f"🦅 บอตเว้ย โปรแกรม <ทีมโปรด> เช่น ไก่/หงส์/ปืน/สาลิกา (5 นัดถัดไป)\n"
         f"🥾 บอตเว้ย ดาวซัลโว\n\n"
-        f"🔔 แจ้งเตือนอัตโนมัติ{notification_info}\n"
+        f"🔔 แจ้งเตือนอีเวนต์ VAR ใบแดง และ จุดโทษ\n"
         f"   🔄 VAR (ประตูถูกยกเลิก)\n"
         f"   🟥 ใบแดง / ใบเหลืองสอง\n"
-        f"   🎯 Penalty Shootout\n"
+        f"   🎯 จุดโทษ (ยิงเข้า)\n"
         f"\n"
         f"** หมายเหตุ : สามารถพิมพ์คำสั่ง ว่า บอตโว๊ย/บอตโว้ย ได้เช่นเดียวกัน"
     )

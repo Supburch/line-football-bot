@@ -8,7 +8,11 @@ from app.repositories.supabase_client import (
     mark_sent_event,
 )
 from app.utils.helpers import is_watched_match, first_not_none
-from app.flex.flex_builders import build_var_flex, build_penalty_shootout_flex, build_red_card_flex
+from app.flex.flex_builders import (
+    build_var_flex,
+    build_penalty_flex,
+    build_red_card_flex,
+)
 from app.utils.constants import (
     EPL_CODE,
     ACTIVE_COMPETITION,
@@ -158,9 +162,6 @@ def _monitor_goals_inner(live_matches: list = None):
                 state_manager.cleanup_match(fid)
                 continue
 
-            if not is_watched_match(home_name, away_name, comp_code):
-                continue
-
             score = m.get("score", {})
             # Robust score extraction: regularTime (WC/knockout) > fullTime > halfTime > 0
             # regularTime is the most stable field during live World Cup matches
@@ -176,91 +177,13 @@ def _monitor_goals_inner(live_matches: list = None):
             except (ValueError, TypeError):
                 hs = as_ = 0
 
-            # Smart Penalty Shootout Tracking
-            duration = score.get("duration")
-            penalties = score.get("penalties", {})
-            pen_hs = penalties.get("home")
-            pen_as = penalties.get("away")
-
-            is_pso = (duration == "PENALTY_SHOOTOUT") or (pen_hs is not None and pen_as is not None)
-
-            if is_pso:
-                pen_hs = int(pen_hs) if pen_hs is not None else 0
-                pen_as = int(pen_as) if pen_as is not None else 0
-                pen_fid = f"{fid}_pen"
-
-                # Check memory state for shootout
-                if state_manager.get_score(pen_fid) is None:
-                    event_key_pen = f"{pen_fid}-{pen_hs}-{pen_as}"
-                    if get_sent_event(event_key_pen):
-                        state_manager.commit_memory(pen_fid, pen_hs, pen_as)
-                    else:
-                        state_manager.commit_memory(pen_fid, 0, 0)
-
-                prev_pen = state_manager.get_score(pen_fid)
-                if prev_pen is not None:
-                    prev_pen_hs, prev_pen_as = prev_pen
-                    if pen_hs > prev_pen_hs or pen_as > prev_pen_as:
-                        # Shootout score changed!
-                        event_key_pen = f"{pen_fid}-{pen_hs}-{pen_as}"
-
-                        if state_manager.can_retry_event(event_key_pen) and not get_sent_event(
-                            event_key_pen
-                        ):
-                            if pen_hs > prev_pen_hs:
-                                scorer_text = (
-                                    f"🎯 {home_name} SCORED penalty! ({pen_hs} - {pen_as})"
-                                )
-                            else:
-                                scorer_text = (
-                                    f"🎯 {away_name} SCORED penalty! ({pen_hs} - {pen_as})"
-                                )
-
-                            flex_msg = build_penalty_shootout_flex(
-                                home_name,
-                                away_name,
-                                hs,
-                                as_,
-                                pen_hs,
-                                pen_as,
-                                h_logo=m["homeTeam"].get("crest", ""),
-                                a_logo=m["awayTeam"].get("crest", ""),
-                                scorer_text=scorer_text,
-                                comp_code=comp_code,
-                            )
-
-                            result = broadcast(flex_msg)
-                            if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
-                                commit_res = commit_match_state(
-                                    pen_fid, event_key_pen, pen_hs, pen_as
-                                )
-                                if commit_res.success:
-                                    state_manager.commit_memory(pen_fid, pen_hs, pen_as)
-                                    state_manager.clear_event_failure(event_key_pen)
-                                    logger.info(
-                                        "pso_score_committed",
-                                        extra={"match_id": pen_fid, "event_key": event_key_pen},
-                                    )
-                                else:
-                                    abandoned = state_manager.register_event_failure(
-                                        event_key_pen, is_fatal=False
-                                    )
-                                    if abandoned:
-                                        state_manager.commit_memory(pen_fid, pen_hs, pen_as)
-                            elif result == BroadcastResult.RETRYABLE_FAIL:
-                                abandoned = state_manager.register_event_failure(
-                                    event_key_pen, is_fatal=False
-                                )
-                                if abandoned:
-                                    state_manager.commit_memory(pen_fid, pen_hs, pen_as)
-                            else:
-                                abandoned = state_manager.register_event_failure(
-                                    event_key_pen, is_fatal=True
-                                )
-                                if abandoned:
-                                    state_manager.commit_memory(pen_fid, pen_hs, pen_as)
-                # Continue loop to skip regular score transition for this match
-                continue
+            # Red cards are independent of the score: a player can be sent off with
+            # no goal/VAR in the same poll. Check every live match on every poll.
+            h_logo = m["homeTeam"].get("crest", "")
+            a_logo = m["awayTeam"].get("crest", "")
+            _process_red_cards_for_match(
+                m, fid, home_name, away_name, hs, as_, h_logo, a_logo, comp_code
+            )
 
             # Only initialize state if we've never seen it in memory
             if state_manager.get_score(fid) is None:
@@ -352,9 +275,6 @@ def _monitor_goals_inner(live_matches: list = None):
             state_manager.mark_in_flight(event_key)
 
             # Prepare Payload
-            h_logo = m["homeTeam"].get("crest", "")
-            a_logo = m["awayTeam"].get("crest", "")
-
             if is_var:
                 scorer = state_manager.get_last_scorer(fid)
                 flex_msg = build_var_flex(
@@ -387,14 +307,14 @@ def _monitor_goals_inner(live_matches: list = None):
                         "competition": comp_code,
                     },
                 )
+                # Penalty goals (จุดโทษที่ยิงเข้า) ARE notified, unlike regular goals.
+                _process_penalty_goal_for_match(
+                    m, fid, home_name, away_name, hs, as_, h_logo, a_logo, comp_code
+                )
                 # Commit memory so future VAR detection works, then continue to next match.
                 state_manager.commit_memory(fid, hs, as_, scorer)
                 commit_match_state(fid, event_key, hs, as_)
                 state_manager.clear_in_flight(event_key)
-                # Also check red cards before moving on
-                _process_red_cards_for_match(
-                    m, fid, home_name, away_name, hs, as_, h_logo, a_logo, comp_code
-                )
                 continue
 
             # Only reach here for VAR broadcasts
@@ -430,11 +350,6 @@ def _monitor_goals_inner(live_matches: list = None):
                 if abandoned:
                     state_manager.commit_memory(fid, hs, as_)
 
-            # Check red cards for VAR matches too
-            _process_red_cards_for_match(
-                m, fid, home_name, away_name, hs, as_, h_logo, a_logo, comp_code
-            )
-
     except Exception as e:
         logger.error("monitor_goals_exception", extra={"error": str(e)})
 
@@ -450,7 +365,7 @@ def _process_red_cards_for_match(
     a_logo: str,
     comp_code: str,
 ):
-    """Detect and broadcast red card events (RED_CARD / YELLOW_RED_CARD) for a watched match."""
+    """Detect and broadcast red card events (RED_CARD / YELLOW_RED_CARD) for a live match."""
     try:
         bookings = m.get("bookings", [])
         if not bookings:
@@ -509,6 +424,75 @@ def _process_red_cards_for_match(
                 )
     except Exception as e:
         logger.error("red_card_detection_exception", extra={"match_id": fid, "error": str(e)})
+
+
+def _process_penalty_goal_for_match(
+    m: dict,
+    fid: str,
+    home_name: str,
+    away_name: str,
+    hs: int,
+    as_: int,
+    h_logo: str,
+    a_logo: str,
+    comp_code: str,
+):
+    """Detect and broadcast an in-match penalty goal (จุดโทษที่ยิงเข้า).
+
+    Regular goals are intentionally not broadcast, but a penalty goal is a
+    distinct, high-interest event. The football-data.org goal object marks
+    these with ``type == "PENALTY"``.
+    """
+    try:
+        goals = m.get("goals", [])
+        if not goals:
+            return
+
+        last_g = goals[-1]
+        if (last_g.get("type") or "") != "PENALTY":
+            return
+
+        scorer = (last_g.get("scorer") or {}).get("name", "")
+        team_name = (last_g.get("team") or {}).get("name", "")
+        minute_val = last_g.get("minute", "")
+        safe_scorer = (scorer or "unknown").replace(" ", "_")
+        pen_event_key = f"{fid}-PENALTY-{safe_scorer}-{minute_val}"
+
+        if get_sent_event(pen_event_key):
+            return  # Already notified
+
+        flex_msg = build_penalty_flex(
+            home_name,
+            away_name,
+            hs,
+            as_,
+            h_logo,
+            a_logo,
+            scorer=scorer,
+            team=team_name,
+            minute=minute_val,
+            comp_code=comp_code,
+        )
+        logger.info(
+            "penalty_goal_detected",
+            extra={
+                "match_id": fid,
+                "player": scorer,
+                "minute": minute_val,
+                "event_key": pen_event_key,
+            },
+        )
+        result = broadcast(flex_msg)
+        if result in {BroadcastResult.SUCCESS, BroadcastResult.PARTIAL}:
+            mark_sent_event(pen_event_key)
+            logger.info("penalty_goal_notified", extra={"event_key": pen_event_key})
+        else:
+            logger.warning(
+                "penalty_goal_broadcast_failed",
+                extra={"event_key": pen_event_key, "result": str(result)},
+            )
+    except Exception as e:
+        logger.error("penalty_goal_detection_exception", extra={"match_id": fid, "error": str(e)})
 
 
 def log_state_manager_health():

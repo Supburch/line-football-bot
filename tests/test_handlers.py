@@ -8,7 +8,7 @@ from app.utils.teams import TEAM_ALIASES, get_team_name, resolve_team
 def test_handle_command_invalid():
     res = handle_command("randomtext")
     assert "สวัสดี" in res
-    assert "แจ้งเตือนอัตโนมัติ" in res
+    assert "แจ้งเตือนอีเวนต์ VAR ใบแดง และ จุดโทษ" in res
 
 
 def test_only_four_favorite_teams():
