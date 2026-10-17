@@ -974,7 +974,12 @@ def build_upcoming_flex(matches, team_filter: str = None) -> FlexDict:
     rows = []
     has_free = False
     limit = 5 if team_filter else 10
-    for m in matches[:limit]:
+    now = datetime.now(Config.TZ)
+    shown = 0
+    for m in matches:
+        if shown >= limit:
+            break
+
         home = m["homeTeam"]["name"]
         away = m["awayTeam"]["name"]
         utc_str = m.get("utcDate", "")
@@ -983,9 +988,16 @@ def build_upcoming_flex(matches, team_filter: str = None) -> FlexDict:
             dt_bkk = dt_utc.astimezone(Config.TZ)
             bkk_time = dt_bkk.strftime("%d/%m %H:%M น.")
             match_date = dt_bkk.date()
+            is_past = dt_bkk < now
         except Exception:
             bkk_time = utc_str
             match_date = None
+            is_past = False
+
+        # "โปรแกรม" is an upcoming-fixtures view, so drop matches that already
+        # kicked off. The SCHEDULED status alone can still return stale past rows.
+        if is_past:
+            continue
 
         h_logo = m["homeTeam"].get("crest", "")
         a_logo = m["awayTeam"].get("crest", "")
@@ -1063,6 +1075,7 @@ def build_upcoming_flex(matches, team_filter: str = None) -> FlexDict:
                 ],
             }
         )
+        shown += 1
 
     is_wc = ACTIVE_COMPETITION == WC_CODE
     is_ucl = ACTIVE_COMPETITION == UCL_CODE

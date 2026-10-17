@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from app.handlers.command_handler import build_upcoming, handle_command
@@ -49,24 +50,27 @@ def test_get_team_name():
 
 
 def _sample_matches():
+    def _utc(days: int) -> str:
+        return (datetime.now(timezone.utc) + timedelta(days=days)).strftime("%Y-%m-%dT15:00:00Z")
+
     return {
         "matches": [
             {
                 "homeTeam": {"name": "Tottenham Hotspur FC", "crest": ""},
                 "awayTeam": {"name": "Everton FC", "crest": ""},
-                "utcDate": "2026-09-19T15:00:00Z",
+                "utcDate": _utc(1),
                 "stage": "REGULAR_SEASON",
             },
             {
                 "homeTeam": {"name": "Newcastle United FC", "crest": ""},
                 "awayTeam": {"name": "Arsenal FC", "crest": ""},
-                "utcDate": "2026-09-20T15:00:00Z",
+                "utcDate": _utc(2),
                 "stage": "REGULAR_SEASON",
             },
             {
                 "homeTeam": {"name": "Liverpool FC", "crest": ""},
                 "awayTeam": {"name": "Chelsea FC", "crest": ""},
-                "utcDate": "2026-09-21T15:00:00Z",
+                "utcDate": _utc(3),
                 "stage": "REGULAR_SEASON",
             },
         ]
@@ -115,3 +119,31 @@ def test_handle_command_team_fixture(fetch_mock, _quota_mock):
     res = handle_command("โปรแกรม ไก่")
     assert isinstance(res, dict)
     assert "สเปอร์ส" in res["header"]["contents"][0]["text"]
+
+
+@patch("app.flex.flex_builders.get_remaining_quota_text", return_value="")
+@patch("app.handlers.command_handler.svc.fetch")
+def test_build_upcoming_excludes_past_matches(fetch_mock, _quota_mock):
+    past = (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%Y-%m-%dT15:00:00Z")
+    future = (datetime.now(timezone.utc) + timedelta(days=1)).strftime("%Y-%m-%dT15:00:00Z")
+    fetch_mock.return_value = {
+        "matches": [
+            {
+                "homeTeam": {"name": "Liverpool FC", "crest": ""},
+                "awayTeam": {"name": "Chelsea FC", "crest": ""},
+                "utcDate": past,
+                "stage": "REGULAR_SEASON",
+            },
+            {
+                "homeTeam": {"name": "Newcastle United FC", "crest": ""},
+                "awayTeam": {"name": "Arsenal FC", "crest": ""},
+                "utcDate": future,
+                "stage": "REGULAR_SEASON",
+            },
+        ]
+    }
+
+    res = build_upcoming()
+    assert isinstance(res, dict)
+    # Only the future match should be rendered; the past one is dropped.
+    assert len(res["body"]["contents"]) == 1
