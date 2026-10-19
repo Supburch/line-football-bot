@@ -81,10 +81,10 @@ DEFAULT_LOGO = "https://via.placeholder.com/100/CCCCCC/FFFFFF?text=?"
 WORLD_CUP_START = "2026-06-11"  # วันที่ 11 มิถุนายน 2026 (เริ่มอย่างเป็นทางการตามตาราง FIFA 2026)
 COUNTDOWN_COVER = "https://lh3.googleusercontent.com/d/1dmUN48peARmkGPud7dVyBAYKKYbNbFIQ"
 
-# Premium Competition Logos
-EPL_LOGO = "https://i.imgur.com/vH1N3mF.png"  # Premium EPL logo link or fallback
-WC_LOGO = "https://i.imgur.com/K5fB39L.png"  # Premium World Cup gold logo link or fallback
-UCL_LOGO = "https://i.imgur.com/83p5HnL.png"  # Premium UCL logo link or fallback
+# Premium Competition Logos (API-Sports public CDN; imgur links were dead)
+EPL_LOGO = "https://media.api-sports.io/football/leagues/39.png"  # Premier League
+WC_LOGO = "https://media.api-sports.io/football/leagues/1.png"  # FIFA World Cup
+UCL_LOGO = "https://media.api-sports.io/football/leagues/2.png"  # UEFA Champions League
 
 WATCHED_TEAMS = [
     "Tottenham Hotspur",
