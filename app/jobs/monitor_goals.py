@@ -58,6 +58,20 @@ def should_ignore_rollback(goal_diff: int, status: str, fid: str) -> bool:
     return False
 
 
+def goals_contradict_rollback(m: dict, prev_total: int) -> bool:
+    """Returns True when the API's goals list still contains the goals we already
+    observed, which contradicts a score rollback.
+
+    A genuine VAR disallowed goal is removed from the feed, so the goals list
+    shrinks together with the score. If the list still holds the goals we saw
+    before, the drop in ``score`` is a stale-score artifact (the score fields are
+    behind the goals list), not a VAR decision, and must not fire a false
+    "VAR: NO GOAL" alert.
+    """
+    goals = m.get("goals", []) or []
+    return len(goals) >= prev_total
+
+
 def monitor_goals(live_matches: list = None):
     # Prevent concurrent execution (smart_schedule + goal_monitor can overlap)
     if not _monitor_lock.acquire(blocking=False):
@@ -241,6 +255,22 @@ def _monitor_goals_inner(live_matches: list = None):
                         extra={
                             "match_id": fid,
                             "kept_score": f"{prev_score[0]}-{prev_score[1]}",
+                            "ignored_score": f"{hs}-{as_}",
+                        },
+                    )
+                    continue
+
+                prev_total = prev_score[0] + prev_score[1]
+                if goals_contradict_rollback(m, prev_total):
+                    # The API still lists the goals we already observed, so this
+                    # drop is a stale-score artifact, not a VAR decision. Retain
+                    # the old memory so the goal is not re-broadcast later.
+                    logger.warning(
+                        "var_rollback_goals_contradiction",
+                        extra={
+                            "match_id": fid,
+                            "kept_score": f"{prev_score[0]}-{prev_score[1]}",
+                            "reported_goals": len(m.get("goals", []) or []),
                             "ignored_score": f"{hs}-{as_}",
                         },
                     )

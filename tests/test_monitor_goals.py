@@ -1,6 +1,7 @@
 """Regression tests for the live-event monitor (red card / goal / VAR)."""
 
-from unittest.mock import patch
+from contextlib import ExitStack
+from unittest.mock import MagicMock, patch
 
 from app.jobs import monitor_goals
 from app.services.line_service import BroadcastResult
@@ -181,3 +182,99 @@ def test_monitor_fetches_epl_and_ucl_competitions():
         endpoint = mock_svc.fetch.call_args[0][0]
         codes = endpoint.split("competitions=", 1)[1].split("&", 1)[0]
         assert set(codes.split(",")) == {"PL", "CL"}
+
+
+_GOAL_MADUEKE = {
+    "minute": "80",
+    "type": "REGULAR",
+    "team": {"name": "Arsenal"},
+    "scorer": {"name": "N. Madueke"},
+    "score": {"home": 0, "away": 1},
+}
+
+
+class _FakeClock:
+    """Controllable stand-in for ``time`` so VAR debounce timing is deterministic."""
+
+    def __init__(self):
+        self._now = 0.0
+
+    def time(self):
+        return self._now
+
+    def advance(self, seconds: float):
+        self._now += seconds
+
+
+def _run_monitor_steps(steps, *, clock=None):
+    """Run a sequence of (match, advance_seconds) polls and expose broadcast calls.
+
+    ``advance_seconds`` is applied to ``clock`` before the poll so tests can drive
+    the VAR-confirmation window without real sleeps.
+    """
+    broadcast_mock = MagicMock(return_value=BroadcastResult.SUCCESS)
+    with ExitStack() as stack:
+        if clock is not None:
+            stack.enter_context(patch("app.services.match_state_manager.time", clock))
+        stack.enter_context(patch.object(monitor_goals, "state_manager", MatchStateManager()))
+        stack.enter_context(patch.object(monitor_goals, "is_live_score_enabled", return_value=True))
+        stack.enter_context(patch.object(monitor_goals, "get_sent_event", return_value=False))
+        stack.enter_context(patch.object(monitor_goals, "get_match_score", return_value=None))
+        stack.enter_context(patch.object(monitor_goals, "commit_match_state", return_value=MagicMock(success=True)))
+        stack.enter_context(patch.object(monitor_goals, "broadcast", broadcast_mock))
+        stack.enter_context(patch.object(monitor_goals, "mark_sent_event"))
+        for match, advance in steps:
+            if advance and clock is not None:
+                clock.advance(advance)
+            monitor_goals._monitor_goals_inner(live_matches=[match])
+    return broadcast_mock
+
+
+def test_score_rollback_with_goals_still_present_is_not_var():
+    """A score drop that contradicts the API's own goals list is a stale-score
+    artifact, not a VAR decision, and must not broadcast 'VAR: NO GOAL'."""
+    goal = _watched_match(goals=[_GOAL_MADUEKE], home=0, away=1)
+    rollback = _watched_match(goals=[_GOAL_MADUEKE], home=0, away=0)
+    broadcast_mock = _run_monitor_steps(
+        [
+            (_watched_match(), 0),
+            (goal, 0),
+            (rollback, 0),
+            (rollback, 0),
+        ]
+    )
+    assert broadcast_mock.call_count == 0
+
+
+def test_var_rollback_confirms_only_after_persistence_window():
+    """A genuine VAR (goal removed from feed) still fires, but only after the
+    dropped score has persisted for the confirmation window."""
+    clock = _FakeClock()
+    broadcast_mock = _run_monitor_steps(
+        [
+            (_watched_match(), 0),
+            (_watched_match(goals=[_GOAL_MADUEKE], home=0, away=1), 0),
+            (_watched_match(home=0, away=0), 0),  # drop: goal removed
+            (_watched_match(home=0, away=0), 60),  # still low, within window
+            (_watched_match(home=0, away=0), 90),  # persisted past window -> confirm
+        ],
+        clock=clock,
+    )
+    assert broadcast_mock.call_count == 1
+
+
+def test_var_rollback_restored_within_window_does_not_fire():
+    """A VAR review that ultimately AWARDS the goal (score restores quickly) must
+    not fire a false 'VAR: NO GOAL'."""
+    clock = _FakeClock()
+    broadcast_mock = _run_monitor_steps(
+        [
+            (_watched_match(), 0),
+            (_watched_match(goals=[_GOAL_MADUEKE], home=0, away=1), 0),
+            (_watched_match(home=0, away=0), 0),  # VAR check: score drops
+            (_watched_match(home=0, away=0), 60),  # still under review
+            (_watched_match(goals=[_GOAL_MADUEKE], home=0, away=1), 10),  # awarded
+        ],
+        clock=clock,
+    )
+    assert broadcast_mock.call_count == 0

@@ -3,6 +3,12 @@ import time
 from typing import Dict, Tuple, Optional
 from app.utils.logger import logger
 
+# Minimum number of seconds a dropped score must persist before it is treated as
+# a confirmed VAR disallowed goal. A VAR review that ultimately AWARDS the goal
+# briefly lowers the score and then restores it; waiting this window avoids
+# firing a false "VAR: NO GOAL" on those transient rollbacks.
+VAR_CONFIRM_MIN_SECONDS = 120
+
 
 class MatchStateManager:
     """
@@ -54,10 +60,15 @@ class MatchStateManager:
     def set_pending_var(self, fid: str, prev_score: Tuple[int, int], new_score: Tuple[int, int]):
         with self._lock:
             self._last_updated_at[fid] = time.time()
+            # Preserve the original created_at across debounce polls so the VAR
+            # confirmation window is measured from the first drop, not reset every
+            # time the low score is re-observed.
+            existing = self._pending_var.get(fid)
+            created_at = existing["created_at"] if existing else time.time()
             self._pending_var[fid] = {
                 "prev": prev_score,
                 "new": new_score,
-                "created_at": time.time(),
+                "created_at": created_at,
             }
 
     def check_pending_var(
@@ -79,6 +90,11 @@ class MatchStateManager:
                 return None
 
             if pending["new"] == current_score:
+                # Score is still low, but only confirm once it has persisted for
+                # the minimum window. Transient rollbacks (e.g. a VAR review that
+                # ultimately awards the goal) restore quickly and must not fire.
+                if time.time() - pending["created_at"] < VAR_CONFIRM_MIN_SECONDS:
+                    return None
                 # Confirmed! Score is still low.
                 prev_score = pending["prev"]
                 return prev_score
