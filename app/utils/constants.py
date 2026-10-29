@@ -70,9 +70,10 @@ def is_live_score_enabled() -> bool:
 BOT_PREFIX = "บอตเว้ย"
 WAKE_WORDS = ["บอตเว้ย", "บอตโว๊ย", "บอตโว้ย"]
 
-# Delayed wake word: when a user types "-- ได้รม --", the bot silently picks a
-# random display command and delivers it after DELAYED_RESPONSE_MINUTES.
-DELAYED_WAKE_WORDS = ["ได้รม"]
+# Delayed wake words: when a user types "-- ได้รม --", "-- เห็ด --" or
+# "-- มอนิ่ง --", the bot silently picks a random display command and delivers
+# it after DELAYED_RESPONSE_MINUTES.
+DELAYED_WAKE_WORDS = ["ได้รม", "เห็ด", "มอนิ่ง"]
 DELAYED_RESPONSE_MINUTES = 4
 
 DEFAULT_LOGO = "https://via.placeholder.com/100/CCCCCC/FFFFFF?text=?"

@@ -26,9 +26,17 @@ def test_extract_delayed_command():
     # A command after the delayed wake word is still extracted.
     assert extract_delayed_command("-- ได้รม -- ตาราง") == "ตาราง"
 
+    # Additional delayed wake words behave identically to "ได้รม".
+    assert extract_delayed_command("-- เห็ด --") == ""
+    assert extract_delayed_command("-- มอนิ่ง --") == ""
+    assert extract_delayed_command("-- เห็ด -- ตาราง") == "ตาราง"
+    assert extract_delayed_command("-- มอนิ่ง -- ตาราง") == "ตาราง"
+
 
 def test_delayed_wake_word_constants():
     assert "ได้รม" in DELAYED_WAKE_WORDS
+    assert "เห็ด" in DELAYED_WAKE_WORDS
+    assert "มอนิ่ง" in DELAYED_WAKE_WORDS
     assert DELAYED_RESPONSE_MINUTES == 4
 
 
