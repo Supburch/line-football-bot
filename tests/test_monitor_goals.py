@@ -220,7 +220,13 @@ def _run_monitor_steps(steps, *, clock=None):
         stack.enter_context(patch.object(monitor_goals, "is_live_score_enabled", return_value=True))
         stack.enter_context(patch.object(monitor_goals, "get_sent_event", return_value=False))
         stack.enter_context(patch.object(monitor_goals, "get_match_score", return_value=None))
-        stack.enter_context(patch.object(monitor_goals, "commit_match_state", return_value=MagicMock(success=True)))
+        stack.enter_context(
+            patch.object(
+                monitor_goals,
+                "commit_match_state",
+                return_value=MagicMock(success=True),
+            )
+        )
         stack.enter_context(patch.object(monitor_goals, "broadcast", broadcast_mock))
         stack.enter_context(patch.object(monitor_goals, "mark_sent_event"))
         for match, advance in steps:
