@@ -18,9 +18,11 @@ from app.utils.constants import (
     WAKE_WORDS,
     DELAYED_WAKE_WORDS,
     DELAYED_RESPONSE_MINUTES,
+    MONING_WAKE_WORDS,
 )
 from app.services.line_service import line_config, push_to
 from app.services.scheduler_service import scheduler
+from app.services.morning_greeting import commit_moning_greeting, pick_moning_greeting
 from app.handlers.command_handler import handle_command
 from app.repositories.supabase_client import (
     db_register_group,
@@ -101,9 +103,38 @@ def process_due_delayed_commands() -> int:
     return delivered
 
 
+def _handle_moning(event) -> None:
+    """Reply to the "มอนิ่ง" wake word with one morning greeting per day."""
+    if event.source.type in ["group", "room"]:
+        if gid := safe_group_id(event.source):
+            db_register_group(gid)
+
+    picked = pick_moning_greeting()
+    if picked is None:
+        return  # already greeted today — stay silent
+
+    idx, greeting = picked
+    try:
+        with ApiClient(line_config) as client:
+            MessagingApi(client).reply_message(
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=[TextMessage(text=greeting)],
+                )
+            )
+        commit_moning_greeting(idx)
+    except Exception as e:
+        logger.error({"event": "moning_reply_failed", "error": str(e)})
+
+
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_msg(event):
     text = event.message.text.strip()
+
+    # "มอนิ่ง" morning-greeting wake word — immediate reply, once per day.
+    if any(w in text for w in MONING_WAKE_WORDS):
+        _handle_moning(event)
+        return
 
     # Delayed wake word: process the command after a delay instead of replying now.
     if any(w in text for w in DELAYED_WAKE_WORDS):

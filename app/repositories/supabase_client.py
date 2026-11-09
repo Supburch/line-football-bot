@@ -122,6 +122,7 @@ def cleanup_sent_events_db():
         .delete()
         .lt("created_at", cutoff)
         .not_.like("event_key", "dome_fc_image_%")
+        .not_.like("event_key", "moning_used_%")
     )
 
 
@@ -231,3 +232,50 @@ def db_reopen_delayed_command(cmd_id: str):
         logger.error(
             {"event": "db_reopen_delayed_command_failed", "cmd_id": cmd_id, "error": str(e)}
         )
+
+
+# --- "มอนิ่ง" morning-greeting rotation ---------------------------------------
+#
+# The rotation state lives in ``sent_events`` as ``moning_used_<index>`` rows and
+# is excluded from the 24h cleanup (see cleanup_sent_events_db) so it survives
+# Render free-tier restarts. This lets the bot cycle through all 7 greetings
+# before repeating, without ever skipping one just because a day was missed.
+
+MONING_USED_PREFIX = "moning_used_"
+
+
+def get_moning_used_indices() -> set:
+    """Return the set of morning-greeting indices already used this rotation."""
+    if not supabase:
+        return set()
+    try:
+        res = execute_with_retry(
+            supabase.table("sent_events")
+            .select("event_key")
+            .like("event_key", f"{MONING_USED_PREFIX}%")
+        )
+        used = set()
+        if res and res.data:
+            for row in res.data:
+                key = row.get("event_key", "")
+                if key.startswith(MONING_USED_PREFIX):
+                    try:
+                        used.add(int(key[len(MONING_USED_PREFIX):]))
+                    except ValueError:
+                        continue
+        return used
+    except Exception as e:
+        logger.error({"event": "get_moning_used_indices_failed", "error": str(e)})
+        return set()
+
+
+def mark_moning_used(index: int):
+    mark_sent_event(f"{MONING_USED_PREFIX}{index}")
+
+
+def clear_moning_used():
+    if not supabase:
+        return
+    execute_with_retry(
+        supabase.table("sent_events").delete().like("event_key", f"{MONING_USED_PREFIX}%")
+    )

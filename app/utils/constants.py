@@ -70,11 +70,26 @@ def is_live_score_enabled() -> bool:
 BOT_PREFIX = "บอตเว้ย"
 WAKE_WORDS = ["บอตเว้ย", "บอตโว๊ย", "บอตโว้ย"]
 
-# Delayed wake words: when a user types "-- ได้รม --", "-- เห็ด --" or
-# "-- มอนิ่ง --", the bot silently picks a random display command and delivers
-# it after DELAYED_RESPONSE_MINUTES.
-DELAYED_WAKE_WORDS = ["ได้รม", "เห็ด", "มอนิ่ง"]
+# Delayed wake words: when a user types "-- ได้รม --" or "-- เห็ด --", the bot
+# silently picks a random display command and delivers it after
+# DELAYED_RESPONSE_MINUTES.
+DELAYED_WAKE_WORDS = ["ได้รม", "เห็ด"]
 DELAYED_RESPONSE_MINUTES = 4
+
+# "มอนิ่ง" morning-greeting wake word: replies immediately with one random
+# morning greeting, at most once per BKK calendar day (resets at midnight).
+MONING_WAKE_WORDS = ["มอนิ่ง"]
+
+MONING_GREETINGS = [
+    "สวัสดีตอนเช้าครับ บอตยินดีให้บริการ 24 ชม.นะครับ",
+    "อรุณสวัสดิ์ครับ ขอให้วันนี้เป็นวันที่ราบรื่นและสดใสตลอดทั้งวันนะครับ",
+    "มอร์นิ่งครับ! เช้านี้อย่าลืมกาแฟหอมๆ หรืออาหารเช้าอร่อยๆ เติมพลังยามเช้าครับ",
+    "สวัสดีตอนเช้าครับ แบตเตอรี่ของผมเต็มร้อยพร้อมให้บริการ 24 ชม.แล้วครับ",
+    "ติ๊งต่อง! สวัสดีตอนเช้าครับมนุษย์ที่น่ารักทุกคน ขอให้วันนี้พบเจอแต่เรื่องดีๆนะครับ",
+    "อรุณสวัสดิ์ครับ เช้านี้อย่าลืมยิ้มสักหนึ่งทีเป็นจุดเริ่มต้นของไอเดียดีๆ "
+    "และความสำเร็จตลอดทั้งวันนะครับ",
+    "อรุณสวัสดิ์ครับ เช้านี้ดูแลสุขภาพตัวเองหรือยังครับ ขอให้วันนี้ร่างกายแข็งแรงและสดชื่นนะครับ",
+]
 
 DEFAULT_LOGO = "https://via.placeholder.com/100/CCCCCC/FFFFFF?text=?"
 
