@@ -72,13 +72,18 @@ WAKE_WORDS = ["บอตเว้ย", "บอตโว๊ย", "บอตโว
 
 # Delayed wake words: when a user types "-- ได้รม --" or "-- เห็ด --", the bot
 # silently picks a random display command and delivers it after
-# DELAYED_RESPONSE_MINUTES.
-DELAYED_WAKE_WORDS = ["ได้รม", "เห็ด"]
+# DELAYED_RESPONSE_MINUTES. "มอนิ่ง" is also delayed, but delivers one random
+# morning greeting instead of a football command.
+DELAYED_WAKE_WORDS = ["ได้รม", "เห็ด", "มอนิ่ง"]
 DELAYED_RESPONSE_MINUTES = 4
 
-# "มอนิ่ง" morning-greeting wake word: replies immediately with one random
-# morning greeting, at most once per BKK calendar day (resets at midnight).
+# Subset of DELAYED_WAKE_WORDS that triggers a morning greeting. Still delayed
+# (DELAYED_RESPONSE_MINUTES), and limited to once per BKK calendar day.
 MONING_WAKE_WORDS = ["มอนิ่ง"]
+
+# Internal marker persisted as delayed_commands.command so the delayed worker
+# knows to deliver a morning greeting instead of a football display command.
+MONING_DELAYED_COMMAND = "__moning_greeting__"
 
 MONING_GREETINGS = [
     "สวัสดีตอนเช้าครับ บอตยินดีให้บริการ 24 ชม.นะครับ",

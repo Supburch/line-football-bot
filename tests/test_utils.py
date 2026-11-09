@@ -34,7 +34,7 @@ def test_extract_delayed_command():
 def test_delayed_wake_word_constants():
     assert "ได้รม" in DELAYED_WAKE_WORDS
     assert "เห็ด" in DELAYED_WAKE_WORDS
-    assert "มอนิ่ง" not in DELAYED_WAKE_WORDS
+    assert "มอนิ่ง" in DELAYED_WAKE_WORDS
     assert DELAYED_RESPONSE_MINUTES == 4
 
 

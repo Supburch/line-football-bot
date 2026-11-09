@@ -1,6 +1,6 @@
 """Tests for the "มอนิ่ง" morning-greeting wake word logic."""
 
-from app.utils.constants import MONING_GREETINGS, MONING_WAKE_WORDS
+from app.utils.constants import DELAYED_WAKE_WORDS, MONING_GREETINGS, MONING_WAKE_WORDS
 from app.repositories import supabase_client as sc
 from app.services import morning_greeting as mg
 
@@ -26,6 +26,7 @@ def _install_fake_sc(monkeypatch):
 
 def test_moning_wake_word_constant():
     assert "มอนิ่ง" in MONING_WAKE_WORDS
+    assert "มอนิ่ง" in DELAYED_WAKE_WORDS
 
 
 def test_moning_greetings_has_seven_unique_sentences():
@@ -66,3 +67,33 @@ def test_rotation_uses_all_seven_before_repeat(monkeypatch):
     idx, _ = mg.pick_moning_greeting()
     assert 0 <= idx < 7
     assert state["used"] == set()
+
+
+def test_deliver_moning_pushes_and_commits(monkeypatch):
+    from app.handlers import message_handler as mh
+
+    pushed = []
+    committed = []
+
+    def fake_push(target, msg):
+        pushed.append((target, msg))
+        return True
+
+    monkeypatch.setattr(mh, "pick_moning_greeting", lambda: (2, "สวัสดีครับ"))
+    monkeypatch.setattr(mh, "push_to", fake_push)
+    monkeypatch.setattr(mh, "commit_moning_greeting", committed.append)
+
+    assert mh._deliver_moning("job_1", "target_1") is True
+    assert pushed == [("target_1", "สวัสดีครับ")]
+    assert committed == [2]
+
+
+def test_deliver_moning_skips_when_already_sent(monkeypatch):
+    from app.handlers import message_handler as mh
+
+    pushed = []
+    monkeypatch.setattr(mh, "pick_moning_greeting", lambda: None)
+    monkeypatch.setattr(mh, "push_to", lambda *a: pushed.append(a) or True)
+
+    assert mh._deliver_moning("job_2", "target_2") is True
+    assert pushed == []
