@@ -77,6 +77,14 @@ def update_stock():
         "NETEASE80.BK",
         "VENTURE19.BK",
         "STEG19.BK",
+        "CATL01.BK",
+        "ABB23.BK",
+        "SU23.BK",
+        "JCI23.BK",
+        "PRY23.BK",
+        "NG23.BK",
+        "EOAN23.BK",
+        "NVT23.BK",
     ]
 
     values = []
