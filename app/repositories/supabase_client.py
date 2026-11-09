@@ -260,7 +260,7 @@ def get_moning_used_indices() -> set:
                 key = row.get("event_key", "")
                 if key.startswith(MONING_USED_PREFIX):
                     try:
-                        used.add(int(key[len(MONING_USED_PREFIX):]))
+                        used.add(int(key[len(MONING_USED_PREFIX) :]))
                     except ValueError:
                         continue
         return used
